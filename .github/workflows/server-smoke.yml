@@ -23,7 +23,10 @@ jobs:
 
       - name: Start API
         run: |
-          docker run -d --name robot-studio-api -e ROBOT_STUDIO_API_KEY=ci-secret -p 8080:8080 robot-studio-api
+          docker run -d --name robot-studio-api \
+            -e ROBOT_STUDIO_API_KEY=ci-secret \
+            -p 8080:8080 \
+            robot-studio-api
           for i in {1..30}; do
             if curl --fail --silent http://127.0.0.1:8080/health; then exit 0; fi
             sleep 1
@@ -39,7 +42,8 @@ jobs:
 
       - name: Verify API key protection
         run: |
-          code=$(curl --silent --output /tmp/unauthorized.json --write-out "%{http_code}" -X POST http://127.0.0.1:8080/analyze)
+          code=$(curl --silent --output /tmp/unauthorized.json --write-out "%{http_code}" \
+            -X POST http://127.0.0.1:8080/analyze)
           test "$code" = "401"
           grep -q "Unauthorized" /tmp/unauthorized.json
 
@@ -63,7 +67,13 @@ jobs:
 
       - name: Verify render endpoint
         run: |
-          curl --fail --silent --show-error             -X POST http://127.0.0.1:8080/render             -F "audio=@/tmp/fixture.wav"             -F "script=Good news today"             -F "story_headline=Test story"             -o /tmp/render.mp4
+          curl --fail --silent --show-error \
+            -X POST http://127.0.0.1:8080/render \
+            -H "X-Robot-Studio-Key: ci-secret" \
+            -F "audio=@/tmp/fixture.wav" \
+            -F "script=Good news today" \
+            -F "story_headline=Test story" \
+            -o /tmp/render.mp4
           python - <<'PY'
           from pathlib import Path
           p=Path("/tmp/render.mp4")
