@@ -2,10 +2,13 @@ from __future__ import annotations
 import re, subprocess, tempfile
 from typing import Annotated
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
+
+from .render import render_mp4
 from fastapi.middleware.cors import CORSMiddleware
 
-VERSION="0.1.0"; SR=24000; FPS=30; MAX_BYTES=20*1024*1024
+VERSION="0.1.0"; SR=24000; FPS=30; MAX_BYTES=20*1024*1024; MAX_STORY_BYTES=10*1024*1024
 app=FastAPI(title="Robot Studio API",version=VERSION)
 app.add_middleware(CORSMiddleware,allow_origins=["https://humberto0o0.github.io","http://localhost:8080","http://127.0.0.1:8080"],allow_credentials=False,allow_methods=["GET","POST"],allow_headers=["*"])
 
@@ -129,7 +132,7 @@ def align(t,script,headline=""):
 def health(): return {"ok":True,"service":"robot-studio-api","version":VERSION}
 
 @app.get("/capabilities")
-def capabilities(): return {"audioAnalysis":True,"scriptAlignment":True,"semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering":False,"notes":"Transcription and MP4 rendering are next."}
+def capabilities(): return {"audioAnalysis":True,"scriptAlignment":True,"semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","notes":"Transcription and production 1080x1920 rendering are next."}
 
 @app.post("/analyze")
 async def analyze(audio:Annotated[UploadFile,File(...)]):
@@ -144,3 +147,55 @@ async def director(audio:Annotated[UploadFile,File(...)],script:Annotated[str,Fo
         if cue is None: cue=t["speech"][1]["start"] if len(t["speech"])>1 else (t["speech"][0]["start"] if t["speech"] else 0)
         t["storyCues"]=[{"time":cue,"duration":min(5.2,max(2.8,t["duration"]-cue)),"type":"story-reveal"}]
     return {"schema":"robot-studio-director/v2","story":{"headline":story_headline.strip(),"cues":t.pop("storyCues",[])},**t}
+
+
+@app.post("/render")
+async def render_video(
+    audio: Annotated[UploadFile, File(...)],
+    script: Annotated[str, Form()] = "",
+    story_headline: Annotated[str, Form()] = "",
+    story_image: UploadFile | None = File(default=None),
+) -> Response:
+    audio_blob = await audio.read(MAX_BYTES + 1)
+    pcm = decode(audio_blob)
+    timeline = analyze_pcm(pcm)
+
+    if script.strip():
+        timeline = align(timeline, script.strip(), story_headline.strip())
+    elif story_headline.strip():
+        cue = next((p["time"] for p in timeline["emphasis"] if p["time"] > 2.0), None)
+        if cue is None:
+            cue = timeline["speech"][1]["start"] if len(timeline["speech"]) > 1 else (timeline["speech"][0]["start"] if timeline["speech"] else 0)
+        timeline["storyCues"] = [{"time": cue, "duration": min(5.2, max(2.8, timeline["duration"] - cue)), "type": "story-reveal"}]
+
+    story_blob: bytes | None = None
+    if story_image is not None:
+        story_blob = await story_image.read(MAX_STORY_BYTES + 1)
+        if len(story_blob) > MAX_STORY_BYTES:
+            raise HTTPException(413, "Story image is too large")
+
+    try:
+        mp4 = await run_in_threadpool(
+            render_mp4,
+            audio_blob,
+            timeline,
+            story_blob,
+            story_headline.strip(),
+        )
+    except (ValueError, OSError) as exc:
+        raise HTTPException(422, f"Could not render video: {exc}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(504, "Video render timed out") from exc
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(500, "FFmpeg could not finish the render") from exc
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+    return Response(
+        content=mp4,
+        media_type="video/mp4",
+        headers={
+            "Content-Disposition": 'attachment; filename="robot-performance.mp4"',
+            "Cache-Control": "no-store",
+        },
+    )
