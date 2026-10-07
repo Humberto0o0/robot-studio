@@ -1,16 +1,26 @@
 from __future__ import annotations
-import re, subprocess, tempfile
+import hmac, os, re, subprocess, tempfile
 from typing import Annotated
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 
 from .render import render_mp4
 from fastapi.middleware.cors import CORSMiddleware
 
-VERSION="0.1.0"; SR=24000; FPS=30; MAX_BYTES=20*1024*1024; MAX_STORY_BYTES=10*1024*1024
+VERSION="0.2.0"; SR=24000; FPS=30; MAX_BYTES=20*1024*1024; MAX_STORY_BYTES=10*1024*1024; MAX_DURATION_SECONDS=120; API_KEY=os.getenv("ROBOT_STUDIO_API_KEY","")
 app=FastAPI(title="Robot Studio API",version=VERSION)
 app.add_middleware(CORSMiddleware,allow_origins=["https://humberto0o0.github.io","http://localhost:8080","http://127.0.0.1:8080"],allow_credentials=False,allow_methods=["GET","POST"],allow_headers=["*"])
+
+@app.middleware("http")
+async def api_key_guard(request:Request,call_next):
+    if API_KEY and request.url.path in {"/analyze","/director","/render"}:
+        supplied=request.headers.get("X-Robot-Studio-Key","")
+        if not hmac.compare_digest(supplied,API_KEY):
+            return JSONResponse(status_code=401,content={"detail":"Unauthorized"})
+    return await call_next(request)
+
 
 def clamp(v,a,b): return max(a,min(b,v))
 def pct(a,p): return float(np.percentile(a,p*100)) if a.size else 0.0
@@ -20,11 +30,14 @@ def decode(blob:bytes)->np.ndarray:
     if len(blob)>MAX_BYTES: raise HTTPException(413,"Audio file is too large")
     with tempfile.NamedTemporaryFile(suffix=".media") as f:
         f.write(blob); f.flush()
-        cmd=["ffmpeg","-hide_banner","-loglevel","error","-i",f.name,"-vn","-ac","1","-ar",str(SR),"-f","f32le","pipe:1"]
+        cmd=["ffmpeg","-hide_banner","-loglevel","error","-i",f.name,"-t",str(MAX_DURATION_SECONDS+1),"-vn","-ac","1","-ar",str(SR),"-f","f32le","pipe:1"]
         try: p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=45)
         except subprocess.TimeoutExpired as e: raise HTTPException(422,"Audio decode timed out") from e
     if p.returncode or not p.stdout: raise HTTPException(422,p.stderr.decode("utf-8","ignore")[-400:] or "Unsupported audio")
-    return np.frombuffer(p.stdout,dtype=np.float32)
+    pcm=np.frombuffer(p.stdout,dtype=np.float32)
+    if len(pcm)/SR>MAX_DURATION_SECONDS:
+        raise HTTPException(413,f"Audio must be {MAX_DURATION_SECONDS} seconds or shorter")
+    return pcm
 
 def analyze_pcm(audio:np.ndarray)->dict:
     hop=max(1,SR//FPS); frames=[]
@@ -132,7 +145,7 @@ def align(t,script,headline=""):
 def health(): return {"ok":True,"service":"robot-studio-api","version":VERSION}
 
 @app.get("/capabilities")
-def capabilities(): return {"audioAnalysis":True,"scriptAlignment":True,"semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","notes":"Transcription and production 1080x1920 rendering are next."}
+def capabilities(): return {"audioAnalysis":True,"scriptAlignment":True,"semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","maxAudioSeconds":MAX_DURATION_SECONDS,"apiKeyProtection":bool(API_KEY),"notes":"Set ROBOT_STUDIO_API_KEY in hosted environments. Transcription and production 1080x1920 rendering are next."}
 
 @app.post("/analyze")
 async def analyze(audio:Annotated[UploadFile,File(...)]):
