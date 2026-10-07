@@ -34,3 +34,16 @@ The image includes FFmpeg and is ready for a future Cloud Run deployment.
 ## Next backend milestone
 
 Add local/self-hosted transcription or forced alignment so arbitrary uploaded audio can produce true word/phoneme timing without requiring the exact script.
+
+
+## Hosted API protection
+
+For a public deployment, set the environment variable `ROBOT_STUDIO_API_KEY`. When set, `/analyze`, `/director` and `/render` require the header:
+
+```
+X-Robot-Studio-Key: <your secret>
+```
+
+Do not embed this secret in a public GitHub Pages frontend. It is intended for the private bot/backend workflow. Browser access to hosted rendering should later use user authentication or a short-lived token.
+
+The API also caps audio at 120 seconds to protect render time and memory.
