@@ -1,34 +1,107 @@
 # Robot Studio
 
-Robot Studio is an audio-driven animation engine for the recurring robot host.
+Robot Studio is an audio-driven animation and rendering system for a recurring robot news host.
 
-## V4 status
+The long-term goal is:
 
-The current web build is mobile-first and self-contained. It can:
+**story → script → voice → robot performance → story media → captions → vertical MP4 → publishing**
 
-- accept MP3, WAV, M4A or AAC voice audio
-- analyze speech energy, pauses and emphasis in the browser
-- switch among multiple animated mouth states from the audio alone
-- use an optional exact script to estimate word timing, captions and semantic gestures
-- animate idle float, head motion, eye reactions, emphasis and camera movement
-- show Studio, Director and Rig views
-- export a reusable Director JSON timeline
-- record the canvas preview on browsers that support MediaRecorder + canvas capture
+## What works now
 
-The master robot image is embedded into the V4 page so the character loads without a separate image request.
+### V5 browser studio
 
-## Architecture
+The root `index.html` is a mobile-first, self-contained studio designed for iPhone and desktop.
 
-Voice audio -> audio analysis -> director timeline -> character renderer -> captions / gestures -> video renderer.
+It can:
 
-The same Director JSON is intended to drive both the browser preview and the future server-side 1080x1920 MP4 renderer.
+- upload MP3, WAV, M4A or AAC voice audio
+- analyze speech, silence, pauses and emphasis locally in the browser
+- drive multiple mouth states and character movement from audio
+- accept the exact script for estimated word timing, captions and semantic gestures
+- automatically plan gesture cues such as present, open-hand, mic-in, lean, nod and excited
+- upload a story image and reveal it during the performance
+- move/scale the robot to make room for story media
+- burn captions into the canvas preview
+- export Director JSON
+- record the browser canvas where MediaRecorder/canvas capture are supported
+- install as a PWA/Home Screen web app once GitHub Pages is enabled
 
-## Current limitation
+The polished master robot is currently a **bridge rig**: the body artwork is one image while mouth, eye reactions, camera and whole-character movement are layered procedurally.
 
-The polished robot is still a bridge rig: the master artwork is one image, while face/mouth/eye states and whole-character movement are layered on top. The next visual milestone is replacing the microphone arm and presenting arm with separate transparent assets while preserving the same Director timeline.
+### Bot-facing API
+
+The `server/` folder contains a FastAPI + FFmpeg + Pillow renderer.
+
+Endpoints:
+
+- `GET /health`
+- `GET /capabilities`
+- `POST /analyze`
+- `POST /director`
+- `POST /render`
+
+The tested `/render` path accepts voice audio, an optional exact script, optional story headline and optional story image, then returns a vertical H.264/AAC MP4.
+
+Current server preview target:
+
+- 540×960
+- 24 fps
+- H.264 video
+- AAC audio
+- burned-in captions
+- story-image reveal
+- deterministic Director timeline
+
+A 15.9-second test voice rendered successfully end-to-end.
+
+## Security
+
+- audio upload limit: 20 MB
+- story image limit: 10 MB
+- audio duration limit: 120 seconds
+- uploads are processed through temporary storage and are not intentionally persisted by the API
+- set `ROBOT_STUDIO_API_KEY` in hosted environments to protect `/analyze`, `/director` and `/render`
+- never embed that private API key in the public GitHub Pages frontend
+
+## CI
+
+`.github/workflows/server-smoke.yml` builds the Docker container, starts the API, verifies API-key protection, generates a synthetic audio fixture and calls the real MP4 render endpoint.
 
 ## GitHub Pages
 
-The repository includes a Pages deployment workflow in `.github/workflows/pages.yml`.
+The frontend deployment workflow is in `.github/workflows/pages.yml`.
 
-GitHub Pages must be enabled once in repository Settings -> Pages with **Source: GitHub Actions**. After that, pushes to `main` deploy automatically.
+GitHub Pages needs to be enabled once in:
+
+**Settings → Pages → Source: GitHub Actions**
+
+After that, pushes to `main` deploy the studio.
+
+Expected URL:
+
+`https://humberto0o0.github.io/robot-studio/`
+
+## Director contract
+
+See `docs/director-schema.md`.
+
+The Director JSON is deliberately separate from rendering so the browser preview, server renderer and future autonomous bot can all use the same animation plan.
+
+## Next visual milestone
+
+Replace the bridge rig with transparent production layers while preserving the existing Director engine:
+
+1. neutral master body
+2. head shell / face area
+3. microphone arm
+4. gesture arm
+5. eye states
+6. 7–9 mouth shapes
+
+After the layered rig is locked, increase the renderer to 1080×1920.
+
+## Next intelligence milestone
+
+For bot-generated voice, the exact script is already known. The next lipsync improvement is **forced alignment** between that script and the generated audio so word/phoneme timing is precise instead of estimated.
+
+For arbitrary user audio with no script, add self-hosted transcription first.
