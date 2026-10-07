@@ -17,8 +17,10 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v6
+
       - name: Build API container
         run: docker build -f server/Dockerfile -t robot-studio-api .
+
       - name: Start API
         run: |
           docker run -d --name robot-studio-api -p 8080:8080 robot-studio-api
@@ -28,10 +30,42 @@ jobs:
           done
           docker logs robot-studio-api
           exit 1
+
       - name: Verify capabilities
         run: |
           curl --fail --silent http://127.0.0.1:8080/capabilities | tee /tmp/capabilities.json
           grep -q '"rendering":true' /tmp/capabilities.json
+
+      - name: Generate tiny audio fixture
+        run: |
+          python - <<'PY'
+          import math, struct, wave
+          rate=24000
+          seconds=1.4
+          with wave.open("/tmp/fixture.wav","wb") as w:
+              w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
+              frames=[]
+              for i in range(int(rate*seconds)):
+                  t=i/rate
+                  gate=1.0 if .15<t<.62 or .78<t<1.25 else 0.0
+                  env=min(1.0,max(0.0,(t-.15)*12))*min(1.0,max(0.0,(1.25-t)*12))
+                  sample=.22*gate*env*(math.sin(2*math.pi*180*t)+.35*math.sin(2*math.pi*360*t))
+                  frames.append(struct.pack("<h",int(max(-1,min(1,sample))*32767)))
+              w.writeframes(b"".join(frames))
+          PY
+
+      - name: Verify render endpoint
+        run: |
+          curl --fail --silent --show-error             -X POST http://127.0.0.1:8080/render             -F "audio=@/tmp/fixture.wav"             -F "script=Good news today"             -F "story_headline=Test story"             -o /tmp/render.mp4
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("/tmp/render.mp4")
+          data=p.read_bytes()
+          assert len(data)>10000, len(data)
+          assert b"ftyp" in data[:64], data[:64]
+          print("render bytes:",len(data))
+          PY
+
       - name: Container logs
         if: always()
         run: docker logs robot-studio-api || true
