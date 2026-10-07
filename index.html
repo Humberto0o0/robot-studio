@@ -140,19 +140,18 @@ const ctx = canvas.getContext('2d');
 const wave = $('#waveform');
 const wctx = wave.getContext('2d');
 const audio = $('#audio');
-const rigSources = window.ROBOT_ASSETS || {};
-const rig = {
-  base: new Image(),
-  mic: new Image(),
-  present: new Image(),
-  wave: new Image()
+const poseAtlas = new Image();
+poseAtlas.onload = ()=>{ robotReady=true; };
+poseAtlas.onerror = ()=>setEngine('Character asset failed');
+poseAtlas.src = './assets/robot-pose-atlas.webp';
+
+const poseCells = {
+  neutral:{sx:0,   sy:0,   cx:350, cy:200, rot:0},
+  present:{sx:640, sy:0,   cx:225, cy:207, rot:0},
+  wave:{sx:0,      sy:640, cx:362, cy:220, rot:-0.08},
+  point:{sx:640,   sy:640, cx:261, cy:222, rot:-0.12}
 };
-let rigLoadCount = 0;
-Object.entries(rig).forEach(([name,img])=>{
-  img.onload=()=>{ rigLoadCount++; if(rigLoadCount===4) robotReady=true; };
-  img.onerror=()=>setEngine('Character asset failed');
-  img.src=rigSources[name] || '';
-});
+let currentPose='neutral', previousPose='neutral', poseChangedAt=performance.now();
 
 const ui = {
   engine: $('#engineState'), badge: $('#analysisBadge'), play: $('#playBtn'), seek: $('#seek'), time: $('#timeLabel'),
@@ -218,7 +217,7 @@ function analyzeBuffer(buffer){
   const peaks=[];let lastPeak=-99;
   for(let i=2;i<frames.length-2;i++){const f=frames[i];if(f.rms>peakThreshold&&f.rms>=frames[i-1].rms&&f.rms>=frames[i+1].rms&&f.t-lastPeak>.7){peaks.push({time:f.t,strength:f.level});lastPeak=f.t}}
 
-  const gestures=[];const pattern=['present','nod','open-hand','mic-in','lean','present'];
+  const gestures=[];const pattern=['present','point','open-hand','mic-in','lean','present'];
   speechSegments.forEach((s,i)=>{const d=s.end-s.start;if(d<.65)return;const time=s.start+Math.min(.68,d*.27);if(gestures.length&&time-gestures.at(-1).time<1.05)return;gestures.push({time,type:pattern[i%pattern.length],duration:Math.min(1.0,d*.42),source:'audio'})});
   peaks.forEach((p,i)=>{if(gestures.some(g=>Math.abs(g.time-p.time)<.6))return;gestures.push({time:p.time,type:i%2?'emphasis':'excited',duration:.72,strength:p.strength,source:'audio'})});
   gestures.sort((a,b)=>a.time-b.time);
@@ -245,7 +244,7 @@ function semanticGesture(word){
   if(/but|however|although|instead|while/.test(w))return 'lean';
   if(/you|your|people|everyone|we|our/.test(w))return 'open-hand';
   if(/today|now|finally|update|news/.test(w))return 'mic-in';
-  if(/percent|million|billion|hundred|thousand|number/.test(w)||/^\d/.test(w))return 'nod';
+  if(/percent|million|billion|hundred|thousand|number/.test(w)||/^\d/.test(w))return 'point';
   return null;
 }
 
@@ -311,16 +310,16 @@ function drawBackground(t,f,g){
 function mouthTarget(shape,f){
   const level=clamp(f?.level||0,0,1);
   const map={
-    REST:{w:44,h:5,round:1,open:0},
-    M:{w:50,h:7,round:1,open:.05},
-    F:{w:54,h:14,round:.8,open:.28},
-    E:{w:66,h:18,round:.75,open:.38},
-    A:{w:58,h:44,round:.9,open:.92},
-    O:{w:34,h:42,round:1,open:.88},
-    S:{w:56,h:25,round:.85,open:.55}
+    REST:{w:38,h:3,open:0},
+    M:{w:42,h:5,open:.04},
+    F:{w:44,h:11,open:.24},
+    E:{w:52,h:13,open:.32},
+    A:{w:46,h:33,open:.90},
+    O:{w:29,h:34,open:.88},
+    S:{w:46,h:18,open:.50}
   };
   const m={...(map[shape]||map.REST)};
-  if(shape!=='REST'){m.h*=.82+.32*level;m.w*=.94+.12*level}
+  if(shape!=='REST'){m.h*=.86+.24*level;m.w*=.96+.08*level}
   return m;
 }
 function updateMouth(shape,f,dt){
@@ -330,82 +329,81 @@ function updateMouth(shape,f,dt){
   mouthAnim.round += (t.round-mouthAnim.round)*k;
   mouthAnim.open += (t.open-mouthAnim.open)*k;
 }
-function drawDigitalFace(t,f,g,dt){
+function poseForPerformance(t,g,story){
+  if(g&&ui.gesture.checked){
+    if(g.type==='present'||g.type==='open-hand') return 'present';
+    if(g.type==='point'||g.type==='nod') return 'point';
+    if(g.type==='excited'||g.type==='emphasis') return 'wave';
+  }
+  if(story) return 'present';
+  if(t<1.1) return 'wave';
+  if(analysis&&analysis.duration-t<1.0) return 'wave';
+  return 'neutral';
+}
+
+function drawPoseCell(name,alpha=1){
+  const p=poseCells[name]||poseCells.neutral;
+  const size=520, s=size/640;
+  const faceX=0, faceY=-115;
+  const dx=faceX-p.cx*s, dy=faceY-p.cy*s;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.drawImage(poseAtlas,p.sx,p.sy,640,640,dx,dy,size,size);
+  ctx.restore();
+  return {x:faceX,y:faceY,rot:p.rot};
+}
+
+function drawDigitalFaceAt(face,t,f,g,dt,alpha=1){
   const shape=visemeAt(t,f); updateMouth(shape,f,dt);
   const blink=ui.blink.checked && t<blinkUntil;
   const excited=g&&['excited','emphasis'].includes(g.type);
   const thinking=g?.type==='lean';
-  const cyan='#62efff', core='#c9fbff';
-  ctx.save();
-  ctx.shadowColor=cyan;ctx.shadowBlur=18;ctx.strokeStyle=cyan;ctx.fillStyle=core;ctx.lineWidth=13;ctx.lineCap='round';
+  const cyan='#55eaff', core='#d8fdff';
 
-  const eyeY=330, leftX=500, rightX=754;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.translate(face.x,face.y);
+  ctx.rotate(face.rot||0);
+  ctx.shadowColor=cyan;ctx.shadowBlur=10;ctx.strokeStyle=cyan;ctx.fillStyle=core;
+  ctx.lineWidth=7;ctx.lineCap='round';
+
+  const eyeY=-13;
   const eye=(x,flip=1)=>{
     ctx.beginPath();
-    if(blink){ctx.moveTo(x-38,eyeY);ctx.lineTo(x+38,eyeY)}
-    else if(excited){ctx.moveTo(x-39,eyeY+8);ctx.quadraticCurveTo(x,eyeY-33,x+39,eyeY+8)}
-    else if(thinking){ctx.moveTo(x-39,eyeY-8*flip);ctx.quadraticCurveTo(x,eyeY+8*flip,x+39,eyeY-5*flip)}
-    else {ctx.moveTo(x-38,eyeY+5);ctx.quadraticCurveTo(x,eyeY-20,x+38,eyeY+5)}
+    if(blink){ctx.moveTo(x-28,eyeY);ctx.lineTo(x+28,eyeY)}
+    else if(excited){ctx.moveTo(x-28,eyeY+5);ctx.quadraticCurveTo(x,eyeY-21,x+28,eyeY+5)}
+    else if(thinking){ctx.moveTo(x-28,eyeY-5*flip);ctx.quadraticCurveTo(x,eyeY+5*flip,x+28,eyeY-3*flip)}
+    else {ctx.moveTo(x-28,eyeY+4);ctx.quadraticCurveTo(x,eyeY-15,x+28,eyeY+4)}
     ctx.stroke();
   };
-  eye(leftX,1);eye(rightX,-1);
-  ctx.shadowBlur=12;
+  eye(-56,1); eye(56,-1);
 
-  const mx=627,my=466,w=mouthAnim.w,h=Math.max(4,mouthAnim.h);
-  if(mouthAnim.open<.12){
-    ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(mx-w/2,my);ctx.quadraticCurveTo(mx,my+9,mx+w/2,my);ctx.stroke();
+  const mx=0,my=43,w=mouthAnim.w,h=Math.max(3,mouthAnim.h);
+  ctx.shadowBlur=8;
+  if(mouthAnim.open<.11){
+    ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(mx-w/2,my);ctx.quadraticCurveTo(mx,my+7,mx+w/2,my);ctx.stroke();
   }else{
-    ctx.fillStyle='rgba(4,14,24,.96)';ctx.strokeStyle=cyan;ctx.lineWidth=8;
+    ctx.fillStyle='rgba(2,10,18,.97)';ctx.strokeStyle=cyan;ctx.lineWidth=5;
     ctx.beginPath();ctx.ellipse(mx,my,w/2,h/2,0,0,Math.PI*2);ctx.fill();ctx.stroke();
     if(shape==='E'||shape==='F'){
-      ctx.strokeStyle=core;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(mx-w*.28,my-h*.13);ctx.lineTo(mx+w*.28,my-h*.13);ctx.stroke();
-    }
-    if(shape==='A'||shape==='O'||shape==='S'){
-      ctx.strokeStyle='rgba(190,249,255,.75)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(mx,my+h*.10,Math.max(7,w*.16),.15,Math.PI-.15);ctx.stroke();
+      ctx.strokeStyle=core;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(mx-w*.26,my-h*.12);ctx.lineTo(mx+w*.26,my-h*.12);ctx.stroke();
     }
   }
   ctx.restore();
 }
 
-function poseWeights(t,g,story){
-  let wave=0,present=0;
-  if(t<1.65) wave=Math.sin(Math.PI*clamp(t/1.65,0,1));
-  if(g&&ui.gesture.checked){
-    const p=Math.sin(Math.PI*clamp(g.progress,0,1));
-    if(g.type==='present'||g.type==='open-hand') present=Math.max(present,p);
-    if(g.type==='excited') wave=Math.max(wave,p);
+function drawPoseCharacter(t,f,g,story,dt){
+  const wanted=poseForPerformance(t,g,story);
+  if(wanted!==currentPose){
+    previousPose=currentPose;
+    currentPose=wanted;
+    poseChangedAt=performance.now();
   }
-  if(story) present=Math.max(present,.82*story.progress);
-  return {wave:clamp(wave,0,1),present:clamp(present,0,1)};
-}
-function drawRigCharacter(t,f,g,story,dt){
-  const outer=500/1254;
-  ctx.save();
-  ctx.scale(outer,outer);
-  ctx.translate(-627,-627);
-
-  ctx.drawImage(rig.base,0,0,1254,1254);
-
-  // Microphone arm. Kept on-screen while speaking with a tiny audio-driven lift.
-  const micLift=(f.speech?(-5*f.level + Math.sin(t*7.2)*2*f.level):0);
-  ctx.save();ctx.translate(193,417+micLift);ctx.scale(.56,.56);ctx.drawImage(rig.mic,0,0,1254,1254);ctx.restore();
-
-  const weights=poseWeights(t,g,story);
-  if(weights.present>.01){
-    ctx.save();ctx.globalAlpha=weights.present;
-    const enter=(1-weights.present)*28;
-    ctx.translate(934+enter,538+6*Math.sin(t*2.1));ctx.scale(.56,.56);
-    ctx.drawImage(rig.present,0,0,1254,1254);ctx.restore();
-  }
-  if(weights.wave>.01){
-    ctx.save();ctx.globalAlpha=weights.wave;
-    const enter=(1-weights.wave)*25;
-    ctx.translate(928+enter,562-10*weights.wave);ctx.scale(.56,.56);
-    ctx.drawImage(rig.wave,0,0,1254,1254);ctx.restore();
-  }
-
-  drawDigitalFace(t,f,g,dt);
-  ctx.restore();
+  const blend=clamp((performance.now()-poseChangedAt)/170,0,1);
+  if(blend<1) drawPoseCell(previousPose,1-blend);
+  const face=drawPoseCell(currentPose,blend);
+  // Face appears only once, on the active pose, so eyes/mouth never double during cross-fades.
+  drawDigitalFaceAt(face,t,f,g,dt,.35+.65*blend);
 }
 
 function drawStoryCard(t,story){
@@ -442,14 +440,11 @@ function renderStage(now){
   const cam=ui.camera.checked?(1+.012*Math.sin(phase*.35)+f.level*.012):1;
   const storyShift=story?-76*story.progress:0,storyScale=story?1-.12*story.progress:1;
   ctx.save();ctx.translate(canvas.width/2+gx+storyShift,canvas.height*.50+float+voice+gy);ctx.rotate(lean+gr);ctx.scale(cam*gs*storyScale,cam*gs*storyScale);
-  if(robotReady){drawRigCharacter(t,f,g,story,dt)}else{ctx.fillStyle='#eaf4ff';ctx.font='700 24px system-ui';ctx.textAlign='center';ctx.fillText('Loading character…',0,0)}
+  if(robotReady){drawPoseCharacter(t,f,g,story,dt)}else{ctx.fillStyle='#eaf4ff';ctx.font='700 24px system-ui';ctx.textAlign='center';ctx.fillText('Loading character…',0,0)}
   ctx.restore();
   drawCanvasCaption(t);
   ui.caption.innerHTML='';
   if(analysis){ui.seek.value=Math.round((t/analysis.duration)*1000)||0;ui.time.textContent=`${fmt(t)} / ${fmt(analysis.duration)}`;if(now-lastWaveDraw>110){drawWaveform(t);lastWaveDraw=now}updateLiveText(t,f,g)}
-  if ("serviceWorker" in navigator && location.protocol === "https:") {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
-}
 requestAnimationFrame(renderStage);
 }
 
@@ -500,6 +495,9 @@ document.querySelectorAll('.mode-tab').forEach(btn=>btn.addEventListener('click'
 
 
 
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}),{once:true});
+}
 requestAnimationFrame(renderStage);
 
 </script>
