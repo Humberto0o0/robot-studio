@@ -1,0 +1,10 @@
+{
+  "name": "Robot Studio",
+  "short_name": "Robot Studio",
+  "description": "Audio-driven robot animation and video director",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#04080f",
+  "theme_color": "#07111f"
+}
