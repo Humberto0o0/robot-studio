@@ -1,15 +1,24 @@
 # Robot Studio Director schema
 
-Current schema id: `robot-studio-director/v1`
+Current schema id: `robot-studio-director/v2`
 
-The Director JSON is the stable boundary between story/audio intelligence and rendering. The browser preview and future server renderer should consume the same structure.
+The Director JSON is the stable boundary between audio/story intelligence and rendering. Both the browser preview and the server-side MP4 renderer use the same concepts.
 
 ```json
 {
-  "schema": "robot-studio-director/v1",
-  "createdAt": "ISO timestamp",
+  "schema": "robot-studio-director/v2",
   "duration": 20.4,
   "script": "Optional exact spoken script",
+  "story": {
+    "headline": "Clean energy breakthrough",
+    "cues": [
+      {
+        "time": 5.1,
+        "duration": 5.2,
+        "type": "story-reveal"
+      }
+    ]
+  },
   "settings": {
     "energy": 0.62,
     "mouth": true,
@@ -64,26 +73,38 @@ The Director JSON is the stable boundary between story/audio intelligence and re
 - `emphasis`
 - `excited`
 
-Every production gesture must return to the neutral pose so cues can be chained in any order.
+Production gestures should return to the neutral pose so cues can be chained safely.
 
 ## Mouth vocabulary
 
-The current bridge renderer uses:
+The bridge renderer supports:
 
 - `REST`
-- `M` — closed / M-B-P family
-- `F` — F-V family
+- `M` — M/B/P family
+- `F` — F/V family
 - `A`
 - `E`
 - `O`
-- `S` — general consonant / transition shape
+- `S` — general consonant/transition
 
-A future phoneme aligner may produce more precise timing without changing the renderer contract.
+Exact scripts currently produce estimated word/viseme timing aligned to detected speech regions. A future forced aligner can improve timing precision without changing this renderer vocabulary.
 
-## Production renderer target
+## Story cues
 
-- 1080x1920
+A `story-reveal` cue tells the renderer when to reveal the story card. The current composition shifts/scales the robot left while story media appears on the right and then returns the robot to neutral.
+
+## Renderer target
+
+Current tested server preview:
+
+- 540×960
+- 24 fps
+- H.264/AAC MP4
+- captions burned into video frames
+- optional uploaded story image
+
+Production target after character rig quality is locked:
+
+- 1080×1920
 - 30 fps
 - H.264/AAC MP4
-- captions rendered into the frame
-- deterministic output from a Director JSON + audio + media assets
