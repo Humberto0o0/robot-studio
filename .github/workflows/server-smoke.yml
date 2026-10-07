@@ -23,7 +23,7 @@ jobs:
 
       - name: Start API
         run: |
-          docker run -d --name robot-studio-api -p 8080:8080 robot-studio-api
+          docker run -d --name robot-studio-api -e ROBOT_STUDIO_API_KEY=ci-secret -p 8080:8080 robot-studio-api
           for i in {1..30}; do
             if curl --fail --silent http://127.0.0.1:8080/health; then exit 0; fi
             sleep 1
@@ -35,6 +35,13 @@ jobs:
         run: |
           curl --fail --silent http://127.0.0.1:8080/capabilities | tee /tmp/capabilities.json
           grep -q '"rendering":true' /tmp/capabilities.json
+          grep -q '"apiKeyProtection":true' /tmp/capabilities.json
+
+      - name: Verify API key protection
+        run: |
+          code=$(curl --silent --output /tmp/unauthorized.json --write-out "%{http_code}" -X POST http://127.0.0.1:8080/analyze)
+          test "$code" = "401"
+          grep -q "Unauthorized" /tmp/unauthorized.json
 
       - name: Generate tiny audio fixture
         run: |
