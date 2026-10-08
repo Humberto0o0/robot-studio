@@ -202,7 +202,7 @@ function animate3D(t,dt,loud){
  const target=mouthOn?clamp(loud*1.15,.04,1):0;
  state.mouthValue=mix(state.mouthValue,target,clamp(dt*13,0,1));
  const mo=nodes['Mouth_Display'];
- if(mo){const ds=defaults[mo.uuid].scale;mo.scale.set(ds.x*(.83+.24*state.mouthValue),ds.y*(.40+1.45*state.mouthValue),ds.z);}
+ if(mo){const ds=defaults[mo.uuid].scale;mo.scale.set(ds.x,ds.y,ds.z*(.24+1.15*state.mouthValue));}
  const blinkActive=settings.blink&&(Math.sin(ph*.41+1.8)>.988||Math.sin(ph*.71+2.1)>.995);
  state.blinkValue=mix(state.blinkValue,blinkActive?.06:1,clamp(dt*20,0,1));
  for(let side of ['L','R']){
