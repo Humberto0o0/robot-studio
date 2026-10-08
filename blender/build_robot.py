@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.2, rear-hidden thumb and proportional microphone fingers.
+"""Robot Studio - procedural, editable Blender robot v1.2.1, smooth microphone finger ceramics and hidden pads.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -688,22 +688,26 @@ for side,sign in [("L",-1),("R",1)]:
             knuckle_pivots["L_"+str(j)]=kn
             # The dark root is almost entirely inside the ceramic palm.
             orb("Finger L "+str(j)+" recessed graphite root",
-                finger_base,(.026,.028,.029),knuckle_dark,wrist,24,14)
+                (finger_base[0]+.012,finger_base[1]+.027,finger_base[2]),
+                (.019,.019,.021),knuckle_dark,wrist,24,14)
             bend=(bend_x,-.977,z-.003)
             final=(tip_x,-1.011,z-.029)
             rot_link("Finger L "+str(j)+" curled white segment",
                      finger_base,bend,radius,hand_shell,kn)
-            orb("Finger L "+str(j)+" soft hinge",bend,
-                (.024,.023,.024),knuckle_dark,kn,20,14)
+            orb("Finger L "+str(j)+" soft hinge",
+                (bend[0],bend[1]+.024,bend[2]),
+                (.020,.019,.021),knuckle_dark,kn,20,14)
             tip=pivot("Finger_L_"+str(j)+"_Tip",bend,kn)
             rot_link("Finger L "+str(j)+" curved porcelain fingertip",
                      bend,final,radius*.86,hand_shell,tip)
             orb("Finger L "+str(j)+" rounded ceramic pad",final,
                 (radius*.85,radius*.79,radius*.85),
                 hand_shell,tip,24,16)
+            # The graphite contact surface is tucked BEHIND the white
+            # fingertip toward the handle, not a black dot facing the camera.
             orb("Finger L "+str(j)+" tiny contact pad",
-                (final[0],final[1]-.025,final[2]),
-                (radius*.48,.008,radius*.44),knuckle_dark,tip,20,12)
+                (final[0]+.014,final[1]+.031,final[2]),
+                (radius*.36,.008,radius*.34),knuckle_dark,tip,20,12)
 
         # This thumb travels from the palm to the REAR of the microphone:
         # its entire ceramic body is behind the grip's back surface.
