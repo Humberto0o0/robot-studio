@@ -2,6 +2,13 @@ const {chromium}=require('playwright');
 const fs=require('fs');
 setTimeout(()=>{console.error('SMOKE TIMEOUT after 85 seconds');process.exit(2);},85000).unref();
 const assert=require('assert');
+const data=fs.readFileSync('models/robot-prototype.glb');
+const jsonSize=data.readUInt32LE(12);
+const gltf=JSON.parse(data.toString('utf8',20,20+jsonSize));
+const relevant=(gltf.nodes||[]).map(x=>x.name).filter(x=>/eye|mouth|led|helmet|visor|eyebrow|smile/i.test(x));
+console.log('GLB face-node diagnostics:',JSON.stringify(relevant));
+console.log('GLB bytes',data.length,'nodes',(gltf.nodes||[]).length);
+
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true,acceptDownloads:true});
