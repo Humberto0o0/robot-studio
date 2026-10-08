@@ -8,6 +8,12 @@ const gltf=JSON.parse(data.toString('utf8',20,20+jsonSize));
 const relevant=(gltf.nodes||[]).map(x=>x.name).filter(x=>/eye|mouth|led|helmet|visor|eyebrow|smile/i.test(x));
 console.log('GLB face-node diagnostics:',JSON.stringify(relevant));
 console.log('GLB bytes',data.length,'nodes',(gltf.nodes||[]).length);
+const modelNames=(gltf.nodes||[]).map(x=>x.name||'');
+const suitChecks=['Hand-tailored satin lapel L','Hand-tailored satin lapel R','Tailored jacket front L','Tailored jacket front R','Orange necktie diamond knot','Tailored sleeve shoulder cap L','Tailored sleeve shoulder cap R'];
+for(const name of suitChecks) assert(modelNames.includes(name),'New Blender suit object absent: '+name);
+assert(!modelNames.some(n=>/Cute eyebrow|Glass upper (left|right) reflection/.test(n)),'Duplicate eyebrow-like geometry still present');
+assert((gltf.materials||[]).some(m=>/Royal blue woven suit fabric/.test(m.name||'')),'Woven suit fabric material missing');
+console.log('PASS NEW SUIT geometry and single LED eye expression');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
