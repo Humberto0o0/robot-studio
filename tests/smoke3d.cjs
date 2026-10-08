@@ -24,6 +24,7 @@ console.log('GLB bytes',data.length,'nodes',(gltf.nodes||[]).length);
  assert(status.includes('3D ready'),'Real glTF model did not load: '+status);
  assert(status.includes('V2 expressive helmet'),'Premium V2 Blender head/visor geometry was not detected: '+status);
  console.log('PASS 3D model loaded',status);
+ await page.waitForTimeout(900);
  await page.screenshot({path:'test-results/v2-helmet-iphone.png',fullPage:false});
  console.log('PASS real Blender V2 expressive visor and helmet detected');
  await page.locator('#demo').click();
