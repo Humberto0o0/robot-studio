@@ -1,0 +1,31 @@
+name: Check Public Robot Studio URLs
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/check-live-site.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  reachability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check published HTTPS responses
+        shell: bash
+        run: |
+          set -uo pipefail
+          BASE="https://humberto0o0.github.io/robot-studio"
+          for PATH_PART in / /index.html /app/studio3d.js /models/robot-prototype.glb /legacy.html /robot-3d.html; do
+            URL="${BASE}${PATH_PART}"
+            echo "== ${URL}"
+            curl --retry 2 --retry-delay 3 --max-time 20 --location --silent --show-error \
+              --output /tmp/public-body --write-out 'HTTP=%{http_code} CONTENT_TYPE=%{content_type} SIZE=%{size_download} REDIRECT=%{redirect_url}\n' \
+              "${URL}" || echo "CURL_FAILED"
+            wc -c /tmp/public-body || true
+          done
+          echo "== DNS"
+          getent hosts humberto0o0.github.io || true
