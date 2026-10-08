@@ -53,6 +53,17 @@ assert(modelNames.filter(n=>/^Finger L [0-3] curled white segment$/.test(n)).len
 assert(modelNames.filter(n=>/^Thumb_L_Root$/.test(n)).length===1,
  'Exactly one microphone thumb must be exported');
 console.log('PASS V10 restored presenting hand and four clean microphone fingers plus thumb');
+// The V11 thumb is located ABOVE the microphone fingers rather than under
+// the little finger. Check its authored position and exported ceramic meshes.
+for (const j of [0,1,2,3]){
+ assert(modelNames.includes('Finger L '+j+' soft hinge'),'Missing fine ceramic finger hinge '+j);
+ assert(modelNames.includes('Finger L '+j+' rounded ceramic pad'),'Missing matching ceramic fingertip '+j);
+}
+assert(modelNames.includes('Thumb L upward ceramic tip'),'Thumb-up microphone grip was not exported');
+assert(modelNames.includes('Thumb L high recessed hinge'),'Microphone thumb is not seated high on the palm');
+assert(modelNames.filter(n=>/^Finger L [0-3] recessed graphite root$/.test(n)).length===4,
+ 'Must have exactly four articulated microphone fingers');
+console.log('PASS V11 matched porcelain fingers and high opposable microphone thumb');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
