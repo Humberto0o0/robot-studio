@@ -57,7 +57,19 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add models/robot-prototype.glb models/robot-prototype.blend
           git diff --cached --quiet || git commit -m "Build robot 3D assets from Blender script"
-          git push
+          # Other studio edits may arrive while Blender is rendering on the runner.
+          # Rebase binary model commit onto latest main instead of force-pushing.
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              echo "Successfully published fresh Blender model"
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "Could not publish Blender assets after five retries"
+          exit 1
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
