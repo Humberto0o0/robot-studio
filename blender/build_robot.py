@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.0, restored open hand and clean four-finger microphone grip.
+"""Robot Studio - procedural, editable Blender robot v1.1, matched ceramic hands and correctly raised microphone thumb.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -653,52 +653,72 @@ for side,sign in [("L",-1),("R",1)]:
         orb("Thumb R dark contact pad",t2,(.041,.041,.040),
             knuckle_dark,thumb,24,16)
     else:
-        # V10 microphone hand: exactly four porcelain fingers + one thumb.
-        # Keep the palm behind the handle. Previous double-layer segments,
-        # visible knuckle spheres and glowing beads looked like extra fingers.
-        palm_center=(-.604,-.809,1.685)
-        orb("Hand_almoured_ceramic_palm_"+side,
-            palm_center,(.137,.103,.160),hand_shell,wrist,48,30)
-        orb("Palm black finger hinge rail "+side,
-            (-.547,-.842,1.711),(.043,.052,.121),
-            knuckle_dark,wrist,30,18)
+        # V11 matched hands. Reuse the SAME white ceramic palm, two smooth
+        # rounded phalanges per finger, small recessed graphite joints and
+        # rounded ceramic contact pads used by the preferred presenting hand.
+        # This hand is rotated into a grip: four fingers CURL ACROSS the mic,
+        # while the ONE opposing thumb comes DOWN FROM ABOVE its handle.
+        #
+        # Deliberately avoid the old separate knuckle rails and black fingertip
+        # spheres, which looked like additional/duplicated fingers.
+        palm=(-.617,-.816,1.721)
+        orb("Hand_almoured_ceramic_palm_"+side,palm,
+            (.157,.107,.180),hand_shell,wrist,48,32)
+        orb("Palm graphite perimeter "+side,
+            (palm[0]-.013,palm[1]+.043,palm[2]),
+            (.139,.057,.157),knuckle_dark,wrist,40,26)
         orb("Hand pearlescent knuckle plate "+side,
-            (-.600,-.898,1.722),(.091,.019,.113),
-            hand_shell,wrist,36,20)
-        # Four single curved porcelain fingers are arranged at different
-        # heights down the handle. The loops are individual digits, not
-        # stacked detached cylinders or duplicate finger layers.
+            (palm[0],palm[1]-.079,palm[2]+.019),
+            (.133,.028,.141),hand_shell,wrist,42,24)
+
+        # Fingers are arranged vertically along the microphone, NOT stacked
+        # sets of joint balls on the same side of the handle. Their individual
+        # ceramic shells visually match the presentation hand.
         for j in range(4):
-            z=1.823-j*.065
-            base=(-.566,-.864,z)
-            kn=pivot("Finger_L_"+str(j)+"_Knuckle",base,wrist)
+            z=1.813-j*.069
+            root=(-.560,-.846,z)
+            kn=pivot("Finger_L_"+str(j)+"_Knuckle",root,wrist)
             knuckle_pivots["L_"+str(j)]=kn
-            # One smooth white finger segment crossing the front of the mic.
-            # The outer tip curves behind the right edge of its black shaft.
-            mid=(-.533,-.955,z+.003)
-            end=(-.463,-1.006,z-.027)
+            orb("Finger L "+str(j)+" recessed graphite root",root,
+                (.038,.039,.040),knuckle_dark,wrist,26,16)
+            bend=(-.524,-.975,z-.003)
+            final=(-.447,-1.010,z-.036)
             rot_link("Finger L "+str(j)+" curled white segment",
-                     base,mid,.037,hand_shell,kn)
-            tip=pivot("Finger_L_"+str(j)+"_Tip",mid,kn)
+                     root,bend,.043,hand_shell,kn)
+            # A small dark hinge connects the TWO ceramic pieces; no
+            # exposed black ball or cyan bead in front of the mic shaft.
+            orb("Finger L "+str(j)+" soft hinge",bend,
+                (.032,.032,.033),knuckle_dark,kn,24,16)
+            tip=pivot("Finger_L_"+str(j)+"_Tip",bend,kn)
             rot_link("Finger L "+str(j)+" curved porcelain fingertip",
-                     mid,end,.034,hand_shell,tip)
-            # Tiny recessed tip pad; no full-sized black ball at each joint.
-            orb("Finger L "+str(j)+" contact pad",
-                (end[0],end[1]-.012,end[2]),
-                (.024,.009,.021),knuckle_dark,tip,20,12)
-        # Single opposable thumb wraps under the shaft.
-        t0=(-.640,-.851,1.545)
+                     bend,final,.037,hand_shell,tip)
+            orb("Finger L "+str(j)+" rounded ceramic pad",final,
+                (.037,.036,.035),hand_shell,tip,24,18)
+            orb("Finger L "+str(j)+" tiny contact pad",
+                (final[0],final[1]-.024,final[2]),
+                (.023,.009,.020),knuckle_dark,tip,20,12)
+
+        # Thumb anchored HIGH next to index knuckle, bending over the top
+        # of the handle. The previous thumb sprouted below the little
+        # finger, appearing upside-down and like a fifth low finger.
+        t0=(-.635,-.865,1.905)
+        t1=(-.571,-.973,1.929)
+        t2=(-.474,-1.004,1.891)
         thumb=pivot("Thumb_L_Root",t0,wrist)
         thumbs[side]=thumb
-        t1=(-.546,-.956,1.557)
-        t2=(-.475,-1.002,1.601)
+        orb("Thumb L high recessed hinge",t0,
+            (.049,.046,.046),knuckle_dark,wrist,24,16)
         rot_link("Thumb L ceramic gripping segment",
-                 t0,t1,.049,hand_shell,thumb)
+                 t0,t1,.055,hand_shell,thumb)
+        orb("Thumb L upper knuckle",t1,
+            (.039,.039,.038),knuckle_dark,thumb,24,16)
         rot_link("Thumb L gripping end",
-                 t1,t2,.038,hand_shell,thumb)
+                 t1,t2,.044,hand_shell,thumb)
+        orb("Thumb L upward ceramic tip",t2,
+            (.038,.035,.035),hand_shell,thumb,24,18)
         orb("Thumb L contact pad",
-            (t2[0],t2[1]-.014,t2[2]),
-            (.028,.010,.023),knuckle_dark,thumb,20,12)
+            (t2[0],t2[1]-.024,t2[2]),
+            (.026,.010,.023),knuckle_dark,thumb,20,12)
 
 # A metallic satin-black microphone with a knitted-wire capsule. The handle
 # passes physically between fingers and palm; headset blue lighting matches the robot.
