@@ -35,6 +35,15 @@ for(const side of ['L','R']){
  assert(!modelNames.includes('Wrist under-cuff mechanism '+side),'Exposed old wrist joint remains on '+side);
 }
 console.log('PASS V7 hidden mechanical wrist joints and continuous cobalt sleeves');
+for(const j of [0,1,2,3]){
+ for(const segment of ['upper white shell','distal ceramic','middle graphite pivot']){
+  assert(modelNames.includes('Finger R '+j+' '+segment),
+    'Missing V9 tapered finger '+j+' '+segment);
+ }
+ assert(modelNames.includes('Finger_R_'+j+'_Tip'),'Missing independent distal pivot '+j);
+}
+assert(modelNames.includes('Thumb R ceramic fingertip'),'Missing V9 rounded ceramic thumb');
+console.log('PASS V9 hand with individually controlled tapered fingers and sculpted thumb');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
