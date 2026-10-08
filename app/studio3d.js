@@ -34,7 +34,7 @@ try{
  renderer.toneMappingExposure=1.2;
  scene=new THREE.Scene();
  camera=new THREE.PerspectiveCamera(45,VW/VH,.05,100);
- camera.position.set(0,2.25,7.25);
+ camera.position.set(0,2.25,8.35);
  camera.lookAt(0,1.9,0);
  ambientLight=new THREE.HemisphereLight(0xd9efff,0x193466,2.1);scene.add(ambientLight);
  keyLight=new THREE.DirectionalLight(0xffffff,3.2);keyLight.position.set(-3,8,6);scene.add(keyLight);
@@ -198,6 +198,17 @@ function animate3D(t,dt,loud){
  applyJoint('Elbow_R','y',(intro==='point'?.26:intro==='wave'?.22:intro==='present'?.11:0)*pulse);
  applyJoint('Elbow_L','y',-.075*loud);
  applyJoint('Wrist_R','z',intro==='wave'?.35*pulse*Math.sin(ph*9):0);
+ // Small independently articulated motions: spread/present and soften/wave,
+ // with no sudden pops when speech cues start and end.
+ const fingerFlex=(intro==='present'?.08:intro==='point'?.19:intro==='wave'?.13:.025)*pulse;
+ for(let k=0;k<4;k++){
+   const stagger=(k-1.5)*.025;
+   applyJoint('Finger_R_'+k+'_Knuckle','z',fingerFlex+stagger*.30+
+     (intro==='wave'?.03*Math.sin(ph*7.6+k*.85)*pulse:0));
+   applyJoint('Finger_L_'+k+'_Knuckle','z',-.015+.018*loud);
+ }
+ applyJoint('Thumb_R_Root','z',-.025+fingerFlex*.45);
+ applyJoint('Thumb_L_Root','z',-.035-.02*loud);
  const mouthOn=settings.mouth&&(state.duration?activeSpeech(t):false);
  const target=mouthOn?clamp(loud*1.15,.04,1):0;
  state.mouthValue=mix(state.mouthValue,target,clamp(dt*13,0,1));
@@ -209,7 +220,7 @@ function animate3D(t,dt,loud){
   const eye=nodes['Eye_'+side];if(eye){const ds=defaults[eye.uuid].scale;eye.scale.z=ds.z*state.blinkValue;}
  }
  const targetCamera=state.angle+(settings.camera?.015*Math.sin(ph*.34):0);
- camera.position.set(Math.sin(targetCamera)*7.25,2.28+Math.sin(ph*.14)*.03,Math.cos(targetCamera)*7.25);
+ camera.position.set(Math.sin(targetCamera)*8.35,2.28+Math.sin(ph*.14)*.03,Math.cos(targetCamera)*8.35);
  camera.lookAt(0,1.93,0);
  $('poseBadge').textContent=intro;
 }
