@@ -158,6 +158,7 @@ function currentCue(t){
 }
 const activeSpeech=(t)=>state.speech.some(p=>t>=p.start&&t<=p.end);
 function gestureAt(t){
+ if(state.poseUntil && performance.now()<state.poseUntil && !state.playing)return state.pose;
  if(!state.duration)return state.pose;
  const cue=currentCue(t);
  if(!settings.gestures||!cue)return 'neutral';
@@ -177,17 +178,17 @@ function applyPosition(name,x,y,z){
 function animate3D(t,dt,loud){
  if(!rig)return;
  let energy=settings.energy,pose=gestureAt(t),clipTime=state.duration?t:performance.now()/1000;
- let intro=state.duration&&t<2?'wave':pose;
- if(state.duration&&t>=2)intro=pose;
+ let intro=state.duration&&t<2&&!(state.poseUntil && performance.now()<state.poseUntil)?'wave':pose;
  if(!state.duration&&state.poseUntil>0&&performance.now()>state.poseUntil){state.pose='neutral';state.poseUntil=0;intro='neutral';}
  const ph=clipTime;
  // Smooth cosine envelopes at gesture boundaries prevent sudden arm pops.
  let start=0,strength=0;
  const cue=currentCue(t);
- if(state.duration&&cue&&intro!=='neutral'){start=t-cue.t;strength=smooth(0,.25,start)*(1-smooth(1.1,1.7,start));}
+ if(state.poseUntil && performance.now()<state.poseUntil && !state.playing){strength=intro==='neutral'?0:1;}
+ else if(state.duration&&cue&&intro!=='neutral'){start=t-cue.t;strength=smooth(0,.25,start)*(1-smooth(1.1,1.7,start));}
  else if(!state.duration){strength=intro==='neutral'?0:1;}
  const pulse=energy*strength;
- const hover=settings.float?.035*Math.sin(ph*1.65):0;
+ const hover=settings.float ? .035*Math.sin(ph*1.65) : 0;
  applyPosition('Robot_Root',0,hover,0);
  applyJoint('Head_Pivot','z',.028*Math.sin(ph*1.13)+.045*loud*energy);
  applyJoint('Shoulder_L','y',-.08+.04*Math.sin(ph*1.1)-.08*loud);
@@ -204,7 +205,7 @@ function animate3D(t,dt,loud){
  const blinkActive=settings.blink&&(Math.sin(ph*.41+1.8)>.988||Math.sin(ph*.71+2.1)>.995);
  state.blinkValue=mix(state.blinkValue,blinkActive?.06:1,clamp(dt*20,0,1));
  for(let side of ['L','R']){
-  const eye=nodes['Eye_'+side];if(eye){const ds=defaults[eye.uuid].scale;eye.scale.y=ds.y*state.blinkValue;}
+  const eye=nodes['Eye_'+side];if(eye){const ds=defaults[eye.uuid].scale;eye.scale.z=ds.z*state.blinkValue;}
  }
  const targetCamera=state.angle+(settings.camera?.015*Math.sin(ph*.34):0);
  camera.position.set(Math.sin(targetCamera)*7.25,2.28+Math.sin(ph*.14)*.03,Math.cos(targetCamera)*7.25);
