@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.1.
+"""Robot Studio - procedural, editable Blender robot v0.2, expressive face.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -104,22 +104,122 @@ orb("Orange pocket square",(.51,-.53,1.86),(.12,.028,.068),orange,root)
 orb("Jacket button",(0,-.635,1.43),(.065,.045,.065),black,root)
 orb("Jacket button trim",(0,-.678,1.43),(.03,.012,.03),steel,root)
 
-head=pivot("Head_Pivot",(0,0,2.06),root)
-orb("Helmet white outer shell",(0,0,2.63),(1.01,.78,.79),shell,head)
-orb("Gloss black visor",(0,-.657,2.67),(.82,.235,.45),navy,head)
-orb("Cobalt forehead",(0,-.03,3.345),(.35,.66,.13),blue,head)
-for sign,label in [(-1,"L"),(1,"R")]:
-    orb("Headset "+label,(sign*1.02,0,2.58),(.205,.40,.34),blue,head)
-    orb("Headset light "+label,(sign*1.18,-.02,2.58),(.055,.26,.24),cyan,head)
-    tube("Antenna "+label,(sign*1.03,0,2.82),(sign*1.03,0,3.38),.045,black,head)
-    orb("Antenna tip "+label,(sign*1.03,0,3.40),(.075,.077,.23),cyan,head)
+# Robot Studio V2: independent art direction for the HELMET, VISOR and
+# EXPRESSION RIG. All geometry below is real Blender mesh data, not an AI image.
+# Eye and mouth object names are stable identifiers consumed by studio3d.js.
+navy = mat("Black glass / clearcoat visor",(.004,.009,.024),.24,.07)
+shell = mat("Ceramic pearl helmet",(.94,.973,1.0),.18,.13)
+trim = mat("Deep navy visor gasket",(.009,.025,.059),.43,.20)
+edge = mat("Iridescent cobalt anodized trim",(.025,.20,.95),.56,.14)
+led_bg = mat("Blue LED diffuser",(.015,.13,.70),.10,.21,1.4)
+led_px = mat("Cyan LED pixel matrix",(.12,.95,1.0),.05,.15,4.0)
+mouth_dark = mat("Warm shaded smile cavity",(.095,.004,.012),.10,.27)
+tongue = mat("Coral pink mouth tongue",(.99,.13,.14),.06,.29)
+mouth_border = mat("Inner mouth rim",(.025,.012,.026),.12,.23)
+glass_sheen = mat("Blue glass visor reflection",(.075,.28,.68),.29,.09)
+for m in [navy,shell]:
+    node=m.node_tree.nodes.get("Principled BSDF")
+    if "Coat Weight" in node.inputs: node.inputs["Coat Weight"].default_value=.65
+    if "Coat Roughness" in node.inputs: node.inputs["Coat Roughness"].default_value=.10
 
-# Emissive expression objects, parented to the head so eye/mouth registration never drifts.
-eyes=[]
+def poly_mesh(name, xyz, faces, material, parent):
+    mesh=bpy.data.meshes.new(name+"_Geometry")
+    mesh.from_pydata(xyz, [], faces)
+    mesh.update()
+    ob=bpy.data.objects.new(name,mesh)
+    bpy.context.collection.objects.link(ob)
+    ob.data.materials.append(material)
+    for f in ob.data.polygons:f.use_smooth=True
+    ob.parent=parent
+    ob.matrix_parent_inverse=parent.matrix_world.inverted()
+    return ob
+
+head=pivot("Head_Pivot",(0,0,2.06),root)
+orb("Helmet / pearl white ceramic",(0,0,2.65),(1.052,.824,.82),shell,head,64,44)
+# Three concentric ellipsoids form a thick visible white bezel, a narrow dark
+# rubber gasket and the smoothly convex black glass display. They overlap, but
+# the visor projects further forward so no black outlines cut across the eyes.
+orb("Visor white sculpted surround",(0,-.535,2.72),(.963,.315,.532),shell,head,64,40)
+orb("Visor black precision gasket",(0,-.610,2.724),(.917,.282,.488),trim,head,64,40)
+orb("Visor curved midnight glass",(0,-.662,2.727),(.876,.259,.461),navy,head,72,48)
+# A polished blue crest is integrated with the helmet, rather than a flat block.
+orb("Cobalt forehead enamel plate",(0,-.055,3.395),(.367,.655,.105),edge,head,48,28)
+orb("Cobalt crest glint",(0,-.18,3.473),(.205,.31,.017),blue,head,48,16)
+# Tiny reflective accents high on the curved visor; these sit behind eyes.
+orb("Glass upper left reflection",(-.52,-.842,3.01),(.115,.016,.027),glass_sheen,head,32,16)
+orb("Glass upper right reflection",(.52,-.842,3.01),(.11,.016,.021),glass_sheen,head,32,16)
+
 for sign,label in [(-1,"L"),(1,"R")]:
-    eye=orb("Eye_"+label,(sign*.38,-.868,2.78),(.14,.035,.045),cyan,head)
-    eyes.append(eye)
-mouth=ring("Mouth_Display",(0,-.895,2.47),.086,.018,cyan,head,rotation=(math.pi/2,0,0))
+    # White/blue layered ear cups, metallic separation ring and cyan light core.
+    orb("Headset porcelain housing "+label,(sign*1.018,.012,2.63),(.174,.363,.326),shell,head,48,28)
+    orb("Headset deep blue band "+label,(sign*1.078,.008,2.63),(.160,.340,.312),edge,head,48,28)
+    orb("Headset polished white stripe "+label,(sign*1.141,.008,2.63),(.067,.290,.257),shell,head,40,24)
+    orb("Headset active cyan light "+label,(sign*1.201,-.017,2.63),(.047,.225,.215),cyan,head,40,24)
+    tube("Antenna graphite stem "+label,(sign*1.032,.055,2.87),(sign*1.032,.055,3.369),.043,black,head)
+    orb("Antenna luminous tube "+label,(sign*1.032,.055,3.390),(.058,.064,.205),cyan,head,30,20)
+
+# Draw LED arcs conforming to a real convex visor. Direct mesh projection keeps
+# the face integrated with the glass as the head rotates in Three.js.
+def visor_depth(x,z,offset=.026):
+    # negative Y is the front of this robot.
+    u=(x/.876)**2 + ((z-2.727)/.461)**2
+    return -.662-.259*math.sqrt(max(.002,1.0-u))-offset
+
+def curved_strip(name,cx,z0,width,height,thickness,material,parent,yoff=.036,segments=28):
+    verts,faces=[],[]
+    for i in range(segments+1):
+        t=math.pi*i/segments
+        xx=cx+width*math.cos(t)
+        top=z0+height*math.sin(t)
+        bottom=z0-thickness+max(.005,height-thickness*1.08)*math.sin(t)
+        for zz in (top,bottom):
+            verts.append((xx,visor_depth(xx,zz,yoff),zz))
+        if i:
+            a=2*(i-1);b=2*i
+            faces.extend([(a,b,a+1),(b,b+1,a+1)])
+    return poly_mesh(name,verts,faces,material,parent)
+
+def matrix_pixels(name,cx,base,width,outer,inner,parent):
+    # Many small separated emissive quads, ONE combined mesh. Efficient on iPhone.
+    verts,faces=[],[]
+    dx=.024
+    for ix in range(-11,12):
+        x=cx+ix*dx
+        frac=max(0,1-((x-cx)/width)**2)
+        arch=math.sqrt(frac)
+        zhi=base+outer*arch-.006
+        zlo=base-.041+max(.004,inner)*arch+.006
+        for k in range(15):
+            z=base-.033+k*.019
+            if z<zlo or z>zhi:continue
+            # Avoid a uniform solid bar: tiny alternating pixel brightness holes.
+            if (ix*19+k*7)%23==0:continue
+            d=.0066
+            four=[]
+            for xx,zz in [(x-d,z-d),(x+d,z-d),(x+d,z+d),(x-d,z+d)]:
+                four.append((xx,visor_depth(xx,zz,.057),zz))
+            q=len(verts);verts.extend(four)
+            faces.append((q,q+1,q+2,q+3))
+    return poly_mesh(name,verts,faces,led_px,parent)
+
+for sign,label in [(-1,"L"),(1,"R")]:
+    cx=sign*.395
+    eye=pivot("Eye_"+label,(cx,visor_depth(cx,2.74,.02),2.73),head)
+    curved_strip("Eye diffuser arc "+label,cx,2.675,.267,.193,.047,led_bg,eye,.035)
+    matrix_pixels("Eye emissive LED matrix "+label,cx,2.675,.265,.193,.145,eye)
+    # The two eyebrows are slim bright arcs, separately positioned above the eyes.
+    curved_strip("Cute eyebrow "+label,cx,2.975,.154,.068,.014,led_px,head,.048,24)
+
+# A real 3D SMILE BELOW the visor, like the reference. The complete mouth is
+# parented to one pivot; scaling Z opens it without any floating graphics.
+mouth=pivot("Mouth_Display",(0,-.80,2.19),head)
+orb("Mouth elegant dark surround",(0,-.791,2.193),(.262,.034,.143),mouth_border,mouth,48,30)
+orb("Mouth open burgundy recess",(0,-.819,2.191),(.245,.038,.126),mouth_dark,mouth,48,30)
+orb("Mouth warm coral tongue",(0,-.856,2.152),(.174,.027,.063),tongue,mouth,40,24)
+orb("Mouth upper soft lip shine",(0,-.848,2.279),(.119,.014,.009),mouth_border,mouth,30,14)
+# Smile-side glints give a friendly identity even at tiny preview scale.
+orb("Smile corner left",(-.221,-.823,2.221),(.023,.015,.021),mouth_border,mouth,20,12)
+orb("Smile corner right",(.221,-.823,2.221),(.023,.015,.021),mouth_border,mouth,20,12)
 
 # Shoulder and elbow pivots remain physically attached at any rotation.
 shoulders={}
@@ -175,7 +275,7 @@ for frame,left,right,elbow,tilt,bob,mouth_open in keys:
     elbows["R"].rotation_euler=(0,elbow,0)
     head.rotation_euler=(0,tilt*.4,tilt)
     root.location.z=bob
-    mouth.scale=(1,.48+mouth_open*.55,1)
+    mouth.scale=(1,1,.65+mouth_open*.50)
     for obj in [shoulders["L"],shoulders["R"],elbows["R"],head,root,mouth]:
         if obj == mouth:
             obj.keyframe_insert(data_path="scale",frame=frame)
