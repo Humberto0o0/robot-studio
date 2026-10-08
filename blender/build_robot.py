@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.8, clean tessellated collar and lapels.
+"""Robot Studio - procedural, editable Blender robot v0.9, elegant articulated presenting hand.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -536,6 +536,24 @@ def wrist_detail(side,center,hand_position,elbow):
     orb("Wrist hidden mechanical socket "+side,
         tuple(c+travel*.90),(.071,.076,.074),cuff_dark,elbow,28,18)
 
+def tapered_finger_segment(name,start,end,radius_a,radius_b,material,parent):
+    """Gentle tapered phalanx with a rounded bevel, no sausage-shaped balls."""
+    start,end=Vector(start),Vector(end)
+    length=(end-start).length
+    mid=(start+end)*.5
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=24, radius1=radius_a,radius2=radius_b,
+        depth=length, location=mid, end_fill_type="NGON")
+    obj=bpy.context.object
+    obj.name=name
+    # The cone's +Z end is the fingertip, narrower than the knuckle end.
+    obj.rotation_euler=(end-start).to_track_quat("Z","Y").to_euler()
+    bevel=obj.modifiers.new("Soft tapered ceramic edges","BEVEL")
+    bevel.width=.008
+    bevel.segments=3
+    obj.modifiers.new("Rounded highlights","WEIGHTED_NORMAL")
+    return finish(obj,material,parent)
+
 shoulders={}
 elbows={}
 wrists={}
@@ -578,58 +596,80 @@ for side,sign in [("L",-1),("R",1)]:
     # 3D wrist-to-hand geometry stays correctly connected to the cuff:
     # anatomy is different for a microphone-gripping hand and open presenting palm.
     if side=="R":
-        # Open palm faces viewer (-Y). Knuckles project UP rather than sideways.
-        # The four fingers are spread across X, tips at upper Z, thumb points inward.
-        hand=(1.425,-.552,1.691)
-        orb("Hand_almoured_ceramic_palm_"+side,hand,(.220,.111,.184),
-            hand_shell,wrist,48,32)
+        # V9 premium presenting hand: softly cupped ceramic palm and four
+        # anatomically staggered, subtly curled fingers. No chunky parallel
+        # bars or giant graphite balls, while preserving every animation pivot.
+        hand=(1.417,-.554,1.699)
+        orb("Hand_almoured_ceramic_palm_"+side,hand,(.198,.086,.145),
+            hand_shell,wrist,56,36)
+        # A smaller back-of-hand panel, buried beneath the ceramic perimeter.
         orb("Palm graphite perimeter "+side,
-            (hand[0],hand[1]+.053,hand[2]),
-            (.202,.081,.162),knuckle_dark,wrist,40,28)
+            (hand[0],hand[1]+.047,hand[2]-.007),
+            (.176,.055,.119),hand_liner,wrist,40,24)
         orb("Hand pearlescent knuckle plate "+side,
-            (hand[0],hand[1]-.086,hand[2]+.045),
-            (.194,.032,.111),hand_shell,wrist,44,24)
+            (hand[0],hand[1]-.065,hand[2]+.065),
+            (.168,.020,.061),hand_shell,wrist,46,26)
         orb("Palm small engraved cobalt badge "+side,
-            (hand[0],hand[1]-.117,hand[2]-.025),
-            (.063,.009,.033),cuff_blue,wrist,32,18)
+            (hand[0],hand[1]-.090,hand[2]-.034),
+            (.044,.009,.022),cuff_blue,wrist,28,16)
 
+        # Finger lengths and subtly asymmetric spacing:
+        # index, middle, ring, pinky. The tips gently curve toward camera
+        # rather than ending as perfectly straight vertical antennae.
+        spans=[-.119,-.040,.044,.119]
+        lengths=[.200,.248,.227,.180]
+        outward=[-.023,-.007,.009,.029]
         for j in range(4):
-            # Leftmost finger leans in, rightmost angles out, as a natural wave.
-            spread=(j-1.5)
-            base=(1.425+spread*.092,-.559,1.808-abs(spread)*.022)
+            cx=hand[0]+spans[j]
+            base=(cx,-.556,1.806-(.012 if j in (0,3) else 0))
             kn=pivot("Finger_R_"+str(j)+"_Knuckle",base,wrist)
             knuckle_pivots["R_"+str(j)]=kn
-            orb("Finger R "+str(j)+" graphite root",base,(.051,.051,.053),
-                knuckle_dark,wrist,28,18)
-            middle=(base[0]+spread*.033,base[1]-.065,
-                    base[2]+.160-abs(spread)*.014)
-            distal=(middle[0]+spread*.026,middle[1]-.045,
-                    middle[2]+.120-abs(spread)*.018)
-            rot_link("Finger R "+str(j)+" upper white shell",
-                     base,middle,.044,hand_shell,kn)
-            orb("Finger R "+str(j)+" middle graphite pivot",middle,
-                (.046,.043,.046),knuckle_dark,kn,24,16)
-            tip=pivot("Finger_R_"+str(j)+"_Tip",middle,kn)
-            rot_link("Finger R "+str(j)+" distal ceramic",
-                     middle,distal,.038,hand_shell,tip)
-            orb("Finger R "+str(j)+" rounded black pad",distal,
-                (.039,.036,.041),knuckle_dark,tip,24,16)
+
+            # Joints are inset into the ceramic surface, not black spheres.
+            orb("Finger R "+str(j)+" graphite root",base,
+                (.031,.033,.032),knuckle_dark,wrist,24,16)
+            mid=(cx+outward[j]*.44,-.588,base[2]+lengths[j]*.56)
+            tip=(cx+outward[j],-.623,base[2]+lengths[j])
+            tapered_finger_segment(
+                "Finger R "+str(j)+" upper white shell",
+                base,mid,.040,.032,hand_shell,kn)
+            orb("Finger R "+str(j)+" middle graphite pivot",mid,
+                (.030,.029,.030),knuckle_dark,kn,24,16)
+
+            bend=pivot("Finger_R_"+str(j)+"_Tip",mid,kn)
+            tapered_finger_segment(
+                "Finger R "+str(j)+" distal ceramic",
+                mid,tip,.030,.022,hand_shell,bend)
+            # Contact pads cover only the FACE of a rounded white fingertip.
+            orb("Finger R "+str(j)+" ceramic nail cap",
+                tip,(.026,.026,.029),hand_shell,bend,24,16)
+            orb("Finger R "+str(j)+" rounded black pad",
+                (tip[0],tip[1]-.021,tip[2]+.002),
+                (.019,.008,.020),knuckle_dark,bend,24,14)
             orb("Finger R "+str(j)+" cyan knuckle bead",
-                (base[0],base[1]-.052,base[2]+.013),
-                (.024,.012,.018),finger_cyan,kn,18,12)
-        thumb=pivot("Thumb_R_Root",(1.224,-.566,1.633),wrist)
+                (base[0],base[1]-.033,base[2]+.008),
+                (.012,.006,.010),finger_cyan,kn,16,10)
+
+        # Opposable thumb sweeps diagonally in front of the open palm.
+        # Shorter, softly bent segments avoid the previous detached L-shape.
+        t0=(1.240,-.560,1.646)
+        thumb=pivot("Thumb_R_Root",t0,wrist)
         thumbs[side]=thumb
-        t0=(1.224,-.566,1.633)
-        t1=(1.154,-.677,1.658)
-        t2=(1.200,-.728,1.710)
-        orb("Thumb R black basal hinge",t0,(.060,.058,.060),
-            knuckle_dark,wrist,28,18)
-        rot_link("Thumb R porcelain base",t0,t1,.057,hand_shell,thumb)
-        orb("Thumb R black knuckle",t1,(.048,.048,.049),
-            knuckle_dark,thumb,26,18)
-        rot_link("Thumb R tip ceramic",t1,t2,.043,hand_shell,thumb)
-        orb("Thumb R dark contact pad",t2,(.041,.041,.040),
-            knuckle_dark,thumb,24,16)
+        t1=(1.184,-.639,1.691)
+        t2=(1.187,-.691,1.738)
+        orb("Thumb R black basal hinge",t0,
+            (.042,.043,.044),knuckle_dark,wrist,26,16)
+        tapered_finger_segment(
+            "Thumb R porcelain base",t0,t1,.050,.041,hand_shell,thumb)
+        orb("Thumb R black knuckle",t1,
+            (.033,.031,.033),knuckle_dark,thumb,24,16)
+        tapered_finger_segment(
+            "Thumb R tip ceramic",t1,t2,.040,.029,hand_shell,thumb)
+        orb("Thumb R ceramic fingertip",t2,
+            (.033,.030,.033),hand_shell,thumb,24,16)
+        orb("Thumb R dark contact pad",
+            (t2[0],t2[1]-.029,t2[2]),
+            (.024,.007,.022),knuckle_dark,thumb,22,14)
     else:
         # V6: microphone grip with a real inward-facing palm. Previously the
         # palm was a forward-pointing globe and fingertip beads lined the OUTER
