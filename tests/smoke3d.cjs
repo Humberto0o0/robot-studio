@@ -42,6 +42,7 @@ for(const j of [0,1,2,3]){
  }
  assert(modelNames.includes('Finger_R_'+j+'_Tip'),'Missing independent distal pivot '+j);
 }
+console.log('V9_THUMB_NODES',JSON.stringify(modelNames.filter(n=>/Thumb R|Thumb_R|Finger R 0/i.test(n))));
 assert(modelNames.includes('Thumb R ceramic fingertip'),'Missing V9 rounded ceramic thumb');
 console.log('PASS V9 hand with individually controlled tapered fingers and sculpted thumb');
 
