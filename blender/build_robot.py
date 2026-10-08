@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.4, articulated arms and hands.
+"""Robot Studio - procedural, editable Blender robot v0.5, glossy cobalt materials and natural hands.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -33,7 +33,7 @@ navy = mat("Midnight visor", (0.006, 0.013, 0.032), 0.28, 0.13)
 orange = mat("Orange tie", (1.0, 0.27, 0.014), 0.06, 0.28)
 cyan = mat("Cyan luminous details", (0.08, 0.90, 1.0), 0.05, 0.15, 3.0)
 black = mat("Graphite joints", (0.025, 0.035, 0.055), 0.35, 0.25)
-steel = mat("Metal microphone grille", (0.17, 0.23, 0.30), 0.58, 0.24)
+steel = mat("Metal microphone grille", (0.27, 0.34, 0.41), 0.82, 0.16)
 
 def finish(obj, material, parent=None):
     obj.data.materials.append(material)
@@ -135,7 +135,7 @@ def poly_mesh(name, xyz, faces, material, parent):
 # authentic glTF textures; no flat reference PNGs or box-shaped lapel primitives.
 shirt=mat("Silky ivory shirt",(.94,.975,1),.025,.30)
 suit_lining=mat("Jacket navy shadow piping",(.008,.025,.10),.11,.45)
-suit_highlight=mat("Cobalt satin lapel facing",(.037,.19,.92),.25,.29)
+suit_highlight=mat("Cobalt satin lapel facing",(.024,.29,.95),.44,.20)
 fabric_shadow=mat("Blue jacket edge shadow",(.014,.078,.43),.13,.53)
 metal_button=mat("Antique graphite metal button",(.12,.15,.21),.82,.19)
 button_glint=mat("Button champagne rim",(.54,.35,.14),.65,.19)
@@ -157,19 +157,24 @@ def weave_image(name, normal=False, size=256):
             checker=(1 if (ix//2+iy//2)%2==0 else -1)
             if normal:
                 # Tangent-space micro-normal for visible light-catching weave.
-                pixels.extend((.5+.035*vstripe,.5+.035*hstripe,.998,1))
+                pixels.extend((.5+.012*vstripe,.5+.012*hstripe,.9994,1))
             else:
-                gain=.960+.021*warp+.014*weft+.008*checker
-                pixels.extend((.006*gain,.175*gain,.675*gain,1))
+                gain=.980+.012*warp+.009*weft+.005*checker
+                pixels.extend((.020*gain,.245*gain,.94*gain,1))
     img.pixels[:]=pixels
     img.pack()
     return img
 
 fabric_color=weave_image("Cobalt basket weave albedo")
 fabric_normal=weave_image("Cobalt basket weave tangent normal",True)
-woven=mat("Royal blue woven suit fabric",(.008,.19,.71),.06,.69)
+woven=mat("Royal blue woven suit fabric",(.021,.25,.92),.38,.235)
 fabric_bsdf=woven.node_tree.nodes.get("Principled BSDF")
-if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.08
+# Polished suit lacquer: visible broad highlights like the ceramic helmet, but
+# with micro-fabric weave instead of mirror-plastic. Metallic uses PBR workflow.
+if "Anisotropic IOR Level" in fabric_bsdf.inputs:
+    fabric_bsdf.inputs["Anisotropic IOR Level"].default_value=.17
+if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.68
+if "Coat Roughness" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Roughness"].default_value=.12
 tex=woven.node_tree.nodes.new("ShaderNodeTexImage")
 tex.name="PBR Fabric Base Color"
 tex.image=fabric_color
@@ -180,7 +185,7 @@ ntex.name="PBR Micro Weave Normal"
 ntex.image=fabric_normal
 ntex.image.colorspace_settings.name="Non-Color"
 nm=woven.node_tree.nodes.new("ShaderNodeNormalMap")
-nm.inputs["Strength"].default_value=.075
+nm.inputs["Strength"].default_value=.031
 woven.node_tree.links.new(ntex.outputs["Color"],nm.inputs["Color"])
 woven.node_tree.links.new(nm.outputs["Normal"],fabric_bsdf.inputs["Normal"])
 
@@ -414,13 +419,13 @@ for sign,label in [(-1,"L"),(1,"R")]:
 # V4: sculpted sleeves and articulated robot hands.
 # Everything is true 3D and follows named shoulder / elbow / wrist bones.
 # The glossy fingers have separate dark phalanx joints and ceramic fingertip caps.
-hand_shell=mat("Pearl white hand ceramic",(.91,.965,1),.20,.19)
+hand_shell=mat("Pearl white hand ceramic",(.95,.97,1),.38,.15)
 knuckle_dark=mat("Graphite finger articulation",(.017,.024,.042),.51,.24)
 hand_liner=mat("Flexible navy palm underglove",(.014,.027,.070),.20,.39)
 finger_cyan=mat("Electric cyan joint fillet",(.012,.51,.75),.22,.18,.48)
-cuff_white=mat("Premium porcelain cuff",(.91,.968,.99),.23,.24)
+cuff_white=mat("Premium porcelain cuff",(.95,.97,1),.32,.17)
 cuff_dark=mat("Cuff dark recessed seal",(.008,.025,.078),.44,.26)
-cuff_blue=mat("Cuff anodized cobalt rim",(.018,.165,.81),.57,.19)
+cuff_blue=mat("Cuff anodized cobalt rim",(.017,.24,.91),.75,.13)
 button_material=mat("Jacket micro button",(.14,.20,.29),.75,.19)
 
 def rot_link(name, p, q, radius, material, parent, spherical=True):
