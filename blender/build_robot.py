@@ -226,7 +226,11 @@ def front_patch(name,outline,material,offset=.05,bevel=None):
             coords.append((x,suit_surface(x,z,offset),z))
         return lookup[key]
     for original in triangles:
-        a,b,c=[Vector((p.x,p.y)) for p in original]
+        # Blender 4.0 returns triangle vertex indices, whereas some versions
+        # return Vector objects. Support both so a sculpted collar can actually
+        # be tessellated instead of silently retaining a stale .glb.
+        a,b,c=[Vector((shape[p][0],shape[p][1])) if isinstance(p,int)
+               else Vector((p.x,p.y)) for p in original]
         cross=(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)
         if cross<0:b,c=c,b
         def point(i,j):
