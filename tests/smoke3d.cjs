@@ -135,6 +135,35 @@ console.log('PASS V11 matched porcelain fingers and high opposable microphone th
  assert(current.distance<6,'Pinch gesture did not zoom in: '+current.distance);
  await page.locator('[data-camera-control="reset"]').click();
  await page.waitForTimeout(90);
+ // Vertical overhead inspection is a separate requirement, not satisfied by
+ // the previous 64-degree orbit cap.
+ await page.locator('[data-camera-control="top"]').click();
+ await page.waitForTimeout(350);
+ current=await readCamera();
+ assert(current.pitch>1.49 && current.pitch<1.56,
+   'Top View did not reach an overhead angle: '+JSON.stringify(current));
+ assert(current.distance<=7,'Top View should move close enough to inspect helmet top');
+ await page.screenshot({path:'test-results/top-view-iphone.png',fullPage:false});
+ await page.locator('[data-camera-control="reset"]').click();
+ await page.waitForTimeout(100);
+ current=await readCamera();
+ assert(Math.abs(current.pitch-.042)<.02 && Math.abs(current.distance-8.35)<.1,
+   'Top View reset failed: '+JSON.stringify(current));
+ // Long upward orbit gestures must now reach almost vertically overhead.
+ await stage.evaluate(el=>{
+  const p=(event,x,y)=>el.dispatchEvent(new PointerEvent(event,
+   {bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',
+    isPrimary:true,clientX:x,clientY:y,button:0,buttons:1}));
+  p('pointerdown',100,180);
+  p('pointermove',100,580);
+  p('pointerup',100,580);
+ });
+ await page.waitForTimeout(110);
+ current=await readCamera();
+ assert(current.pitch>1.48,'Drag pitch still prevents viewing the top: '+current.pitch);
+ await page.locator('[data-camera-control="reset"]').click();
+ await page.waitForTimeout(90);
+ console.log('PASS top-down iPhone camera angle, top button, vertical drag and reset');
  console.log('PASS iPhone drag rotate, vertical tilt, pinch zoom, zoom buttons and reset');
  await page.locator('#demo').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent==='Voice analyzed',{timeout:20000});
