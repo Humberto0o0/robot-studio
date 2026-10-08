@@ -1,0 +1,45 @@
+name: Validate Robot Studio 3D
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "studio.html"
+      - "app/studio3d.js"
+      - ".github/workflows/test-studio3d.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript module syntax
+        run: node --check app/studio3d.js
+      - name: Check page wiring and safety invariants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          js=Path('app/studio3d.js').read_text()
+          html=Path('studio.html').read_text()
+          checks={
+            "3D viewer": "GLTFLoader" in js,
+            "audio decoding": "decodeAudioData" in js,
+            "mouth animation": "Mouth_Display" in js,
+            "shoulder pivot": "Shoulder_R" in js,
+            "elbow pivot": "Elbow_R" in js,
+            "caption overlay": "drawCaptions" in js,
+            "image overlay": "drawStory" in js,
+            "canvas recording": "captureStream(30)" in js,
+            "director export": "robot-director.json" in js,
+            "iPhone layout": "viewport-fit=cover" in html,
+            "linked entry": './app/studio3d.js' in html,
+            "same canvas for capture and preview": "const stream=canvas.captureStream(30)" in js,
+          }
+          for label,ok in checks.items():
+              print(("PASS" if ok else "FAIL"),label)
+          assert all(checks.values())
+          print("All 3D Studio static tests passed")
+          PY
