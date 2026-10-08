@@ -41,7 +41,10 @@ jobs:
 
       - name: Generate editable Blender file and GLB
         run: |
-          blender --background --factory-startup --python blender/build_robot.py
+          # Fail the Action when Blender Python raises an exception.
+          # Otherwise Blender returns 0 and stale model files get published.
+          blender --background --factory-startup --python-exit-code 1 --python blender/build_robot.py | tee /tmp/robot-build.log
+          grep -q "ROBOT_BUILD_OK" /tmp/robot-build.log
           ls -lh models/
           test -s models/robot-prototype.blend
           test -s models/robot-prototype.glb
