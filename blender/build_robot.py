@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.3, tailored cobalt suit.
+"""Robot Studio - procedural, editable Blender robot v0.4, articulated arms and hands.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -411,44 +411,205 @@ for sign,label in [(-1,"L"),(1,"R")]:
     orb("Smile corner "+label,(x,helmet_front(x,2.264,.061),2.264),
         (.021,.012,.017),mouth_border,mouth,20,12)
 
-# Shoulder and elbow pivots remain physically attached at any rotation.
+# V4: sculpted sleeves and articulated robot hands.
+# Everything is true 3D and follows named shoulder / elbow / wrist bones.
+# The glossy fingers have separate dark phalanx joints and ceramic fingertip caps.
+hand_shell=mat("Pearl white hand ceramic",(.91,.965,1),.20,.19)
+knuckle_dark=mat("Graphite finger articulation",(.017,.024,.042),.51,.24)
+hand_liner=mat("Flexible navy palm underglove",(.014,.027,.070),.20,.39)
+finger_cyan=mat("Electric cyan joint fillet",(.012,.51,.75),.22,.18,.48)
+cuff_white=mat("Premium porcelain cuff",(.91,.968,.99),.23,.24)
+cuff_dark=mat("Cuff dark recessed seal",(.008,.025,.078),.44,.26)
+cuff_blue=mat("Cuff anodized cobalt rim",(.018,.165,.81),.57,.19)
+button_material=mat("Jacket micro button",(.14,.20,.29),.75,.19)
+
+def rot_link(name, p, q, radius, material, parent, spherical=True):
+    """Smooth-ended oriented 3D mechanical element; stays in correct joint."""
+    p=Vector(p);q=Vector(q)
+    mid=(p+q)/2
+    obj=orb(name,mid,(radius,radius,(q-p).length/2+radius*.32),
+            material,parent,32,18)
+    obj.rotation_euler=(q-p).to_track_quat("Z","Y").to_euler()
+    if not spherical: obj.scale.z*=.92
+    return obj
+
+def sleeve_mesh(name,p,q,r0,r1,parent,material):
+    """Tailored organic tapered tube, overlap at pivots to eliminate gaps."""
+    v=(Vector(q)-Vector(p));axis=v.normalized()
+    tangent=axis.cross(Vector((0,1,0))).normalized()
+    if tangent.length<.01:tangent=axis.cross(Vector((0,0,1))).normalized()
+    bitangent=axis.cross(tangent).normalized()
+    verts=[]; faces=[];num=28
+    profiles=[(-.045,.66),(.035,.96),(.16,1.05),(.42,1.06),(.73,1.01),(.94,.91),(1.045,.67)]
+    for t,r in profiles:
+        cen=Vector(p)+v*t
+        rr=r0+(r1-r0)*max(0,min(1,t))
+        for k in range(num):
+            th=2*math.pi*k/num
+            pt=cen+rr*r*(tangent*math.cos(th)+bitangent*math.sin(th))
+            verts.append(tuple(pt))
+    for j in range(len(profiles)-1):
+        for k in range(num):
+            a=j*num+k;b=j*num+(k+1)%num
+            faces.append((a,b,b+num,a+num))
+    faces.append(tuple(reversed(tuple(range(num)))))
+    faces.append(tuple((len(profiles)-1)*num+k for k in range(num)))
+    obj=poly_mesh(name,verts,faces,material,parent)
+    # UV map for the woven blue cloth (Blender glTF includes the micro-weave).
+    uv=obj.data.uv_layers.new(name="Fabric Weave UV")
+    for pgn in obj.data.polygons:
+        for li in pgn.loop_indices:
+            idx=obj.data.loops[li].vertex_index
+            layer=idx//num;k=idx%num
+            uv.data[li].uv=(k/num*1.5,layer/(len(profiles)-1)*1.65)
+    return obj
+
+def wrist_detail(side,center,elbow):
+    c=Vector(center)
+    orb("Wrist under-cuff mechanism "+side,c,(.173,.172,.164),
+        knuckle_dark,elbow,36,22)
+    orb("Cuff outer porcelain shell "+side,c+Vector((0,-.026,.005)),
+        (.185,.161,.151),cuff_white,elbow,40,25)
+    orb("Cuff blue encircling line "+side,c+Vector((0,-.151,.006)),
+        (.175,.032,.144),cuff_blue,elbow,40,25)
+    orb("Cuff subtle inner cyan trim "+side,c+Vector((0,-.180,.006)),
+        (.144,.015,.114),finger_cyan,elbow,32,22)
+    orb("Cuff inside dark seal "+side,c+Vector((0,-.19,.004)),
+        (.130,.016,.109),cuff_dark,elbow,32,22)
+
 shoulders={}
 elbows={}
 wrists={}
+knuckle_pivots={}
+thumbs={}
 for side,sign in [("L",-1),("R",1)]:
-    shoulder=pivot("Shoulder_"+side,(sign*.77,-.03,1.87),root)
+    # Keep a continuous shoulder silhouette, consistent left and right.
+    pos=(sign*.76,-.042,1.884)
+    shoulder=pivot("Shoulder_"+side,pos,root)
     shoulders[side]=shoulder
-    orb("Shoulder hidden joint "+side,(sign*.77,-.03,1.87),(.208,.205,.213),black,root)
-    orb("Shoulder mechanical trim "+side,(sign*.80,-.045,1.87),(.160,.205,.172),edge,root)
-    a=(sign*.84,-.055,1.85)
-    b=(sign*1.23,-.16,1.53)
-    tube("Jacket upper arm "+side,a,b,.21,woven,shoulder)
-    orb("Elbow sleeve "+side,b,(.22,.23,.22),woven,shoulder)
-    el=pivot("Elbow_"+side,b,shoulder)
-    elbows[side]=el
-    # A sewn upper-shoulder cap rotates with the arm, hiding the black socket
-    # and preventing a floating detached upper sleeve.
-    orb("Tailored sleeve shoulder cap "+side,
-        (sign*.824,-.060,1.858),(.265,.262,.243),woven,shoulder,40,26)
-    # Narrow metal hinge is behind the cloth instead of a front-facing gap.
-    # Both forearms are shortened and visually thick; no gaps between the segments.
-    c=(sign*1.49,-.43,1.50) if side=="R" else (-.64,-.73,1.61)
-    tube("Jacket forearm "+side,b,c,.195,woven,el)
-    orb("Wrist ring "+side,c,(.21,.21,.17),cyan,el)
-    wrist=pivot("Wrist_"+side,c,el)
-    wrists[side]=wrist
-    hand=(sign*1.61,-.46,1.52) if side=="R" else (-.56,-.81,1.65)
-    orb("White robot palm "+side,hand,(.17,.16,.15),shell,wrist)
-    for j in range(4):
-        signmul=1 if side=="R" else -1
-        f0=(hand[0]+signmul*.075,hand[1]-.05+(j-1.5)*.05,hand[2]+(j-1.5)*.054)
-        f1=(hand[0]+signmul*.22,hand[1]-.06+(j-1.5)*.061,hand[2]+(j-1.5)*.071)
-        tube("Finger "+side+" "+str(j),f0,f1,.034,shell,wrist,12)
+    orb("Shoulder nested graphite ball "+side,pos,(.201,.207,.215),knuckle_dark,root,40,26)
+    # The upper sleeve's dome rotates WITH the shoulder; shoulder ball is hidden.
+    orb("Shoulder rounded cobalt fabric cap "+side,
+        (sign*.802,-.092,1.865),(.295,.263,.260),woven,shoulder,48,30)
 
-# Built-in microphone remains part of left-hand geometry and rotates with the wrist.
-tube("Microphone handle",(-.48,-.92,1.46),(-.44,-.94,2.02),.072,black,wrists["L"])
-orb("Microphone head",(-.44,-.94,2.09),(.18,.18,.18),steel,wrists["L"])
-ring("Microphone cyan band",(-.445,-.94,1.98),.091,.020,cyan,wrists["L"])
+    a=(sign*.84,-.091,1.848)
+    b=(sign*1.132,-.198,1.557)
+    sleeve_mesh("Tailored upper sleeve "+side,a,b,.217,.188,shoulder,woven)
+    orb("Elbow gathered fabric seam "+side,b,(.198,.191,.192),woven,shoulder,38,22)
+    elbow=pivot("Elbow_"+side,b,shoulder)
+    elbows[side]=elbow
+    orb("Elbow flexible inner graphite joint "+side,b,(.112,.122,.116),knuckle_dark,elbow,30,20)
+
+    # Right arm stays inside the 9:16 frame; left bends to hold the microphone.
+    c=(sign*1.285,-.404,1.572) if side=="R" else (-.654,-.682,1.637)
+    sleeve_mesh("Tailored forearm "+side,b,c,.189,.159,elbow,woven)
+    orb("Forearm sleeve hem "+side,c,(.172,.168,.156),woven,elbow,36,22)
+    # Physical stitching on cloth at the elbow, not a disconnected floating arc.
+    for k in (-1,1):
+        seam_z=b[2]+.082*k
+        tube("Elbow seam "+side+" "+str(k),
+             (b[0]-.072,b[1]-.08,seam_z),
+             (b[0]+.074,b[1]-.080,seam_z),
+             .006,suit_highlight,shoulder,10)
+    wrist_detail(side,c,elbow)
+    wrist=pivot("Wrist_"+side,c,elbow)
+    wrists[side]=wrist
+
+    # Palm is a smooth pearl-white glove, with articulated black knuckle sockets.
+    hand=(1.393,-.526,1.595) if side=="R" else (-.559,-.775,1.677)
+    orb("Hand_almoured_ceramic_palm_"+side,hand,(.174,.133,.163),
+        hand_shell,wrist,48,30)
+    orb("Palm black finger hinge rail "+side,
+        (hand[0]+sign*.085,hand[1]-.034,hand[2]),
+        (.10,.120,.133),knuckle_dark,wrist,38,24)
+    # Ceramic back-of-hand ridge catches light; thumb attaches independently.
+    orb("Hand pearlescent knuckle plate "+side,
+        (hand[0],hand[1]-.100,hand[2]+.016),
+        (.118,.040,.128),hand_shell,wrist,36,24)
+
+    if side=="R":
+        # Four individual fingers fan toward the viewer; each has a proper
+        # knuckle + second hinge, two polished ceramic segments and dark tips.
+        for j in range(4):
+            dz=(j-1.5)*.074
+            base=(1.490,-.560,1.600+dz)
+            kn=pivot("Finger_R_"+str(j)+"_Knuckle",base,wrist)
+            knuckle_pivots["R_"+str(j)]=kn
+            orb("Finger R "+str(j)+" graphite root",base,(.053,.059,.056),
+                knuckle_dark,wrist,26,16)
+            middle=(base[0]+.101,base[1]-.073+abs(j-1.5)*.020,base[2]+(j-1.5)*.014)
+            distal=(middle[0]+.068,middle[1]-.080,middle[2]+.012)
+            rot_link("Finger R "+str(j)+" upper white shell",base,middle,.045,hand_shell,kn)
+            # Dark break under both ceramic segments.
+            orb("Finger R "+str(j)+" middle graphite pivot",middle,
+                (.047,.045,.047),knuckle_dark,kn,22,14)
+            tip=pivot("Finger_R_"+str(j)+"_Tip",middle,kn)
+            rot_link("Finger R "+str(j)+" distal ceramic",
+                     middle,distal,.040,hand_shell,tip)
+            orb("Finger R "+str(j)+" rounded black pad",distal,
+                (.044,.041,.043),knuckle_dark,tip,24,16)
+            orb("Finger R "+str(j)+" cyan knuckle bead",
+                (base[0]+.022,base[1]-.024,base[2]),
+                (.015,.016,.022),finger_cyan,kn,16,10)
+        # Outward rotating opposable thumb, two short segments and ball-tip.
+        thumb=pivot("Thumb_R_Root",(1.374,-.575,1.466),wrist)
+        thumbs[side]=thumb
+        t0=(1.376,-.575,1.464);t1=(1.293,-.687,1.435);t2=(1.278,-.759,1.471)
+        orb("Thumb R black basal hinge",t0,(.062,.062,.064),
+            knuckle_dark,wrist,28,16)
+        rot_link("Thumb R porcelain base",t0,t1,.060,hand_shell,thumb)
+        orb("Thumb R black knuckle",t1,(.052,.053,.050),
+            knuckle_dark,thumb,26,18)
+        rot_link("Thumb R tip ceramic",t1,t2,.047,hand_shell,thumb)
+        orb("Thumb R dark contact pad",t2,(.046,.049,.043),
+            knuckle_dark,thumb,22,16)
+    else:
+        # The microphone hand is sculpted into a natural curl, not four rods
+        # projecting outward. Individual curved fingers wrap around its handle.
+        for j in range(4):
+            z=1.805-j*.066
+            base=(-.554,-.824,z)
+            kn=pivot("Finger_L_"+str(j)+"_Knuckle",base,wrist)
+            knuckle_pivots["L_"+str(j)]=kn
+            orb("Finger L "+str(j)+" black hinge",base,(.050,.049,.051),
+                knuckle_dark,wrist,24,14)
+            mid=(-.465,-.920,z-.010)
+            tip=(-.432,-.964,z-.069)
+            rot_link("Finger L "+str(j)+" curled white segment",
+                     base,mid,.047,hand_shell,kn)
+            orb("Finger L "+str(j)+" second black joint",mid,
+                (.044,.042,.045),knuckle_dark,kn,24,14)
+            distal=pivot("Finger_L_"+str(j)+"_Tip",mid,kn)
+            rot_link("Finger L "+str(j)+" curled black tip",mid,tip,
+                     .039,hand_shell,distal)
+            orb("Finger L "+str(j)+" contact fingertip",tip,
+                (.046,.045,.041),knuckle_dark,distal,20,14)
+        thumb=pivot("Thumb_L_Root",(-.598,-.850,1.593),wrist)
+        thumbs[side]=thumb
+        t0=(-.605,-.857,1.601);t1=(-.489,-.917,1.576);t2=(-.454,-.954,1.639)
+        orb("Thumb L black basal joint",t0,(.059,.061,.060),
+            knuckle_dark,wrist,24,14)
+        rot_link("Thumb L ceramic gripping segment",t0,t1,.060,hand_shell,thumb)
+        orb("Thumb L black bent knuckle",t1,(.055,.056,.053),
+            knuckle_dark,thumb,24,14)
+        rot_link("Thumb L gripping end",t1,t2,.047,hand_shell,thumb)
+        orb("Thumb L rounded graphite pad",t2,(.044,.041,.041),
+            knuckle_dark,thumb,22,14)
+
+# Microphone remains attached to the left wrist, and hand fingers curl around
+# its handle. Better metallic finish and scaled mesh cap for a professional mic.
+tube("Microphone sculpted satin graphite grip",(-.480,-.936,1.444),
+     (-.440,-.944,2.003),.067,knuckle_dark,wrists["L"])
+orb("Microphone steel capsule grille",(-.438,-.943,2.076),
+    (.165,.162,.184),steel,wrists["L"],48,28)
+orb("Microphone metallic blue neck",(-.442,-.945,1.952),
+    (.097,.095,.033),cuff_blue,wrists["L"],36,22)
+orb("Microphone blue illuminated collar",(-.442,-.949,1.973),
+    (.112,.102,.020),finger_cyan,wrists["L"],32,22)
+for i in range(4):
+    z=2.020+i*.028
+    orb("Microphone grille metallic woven band "+str(i),(-.440,-.943,z),
+        (.153-.004*i,.155-.004*i,.0065),knuckle_dark,wrists["L"],32,12)
 
 ring("Hover ground ring",(0,0,.36),.74,.044,cyan,root)
 orb("Hover core",(0,0,.51),(.26,.26,.09),cyan,root)
