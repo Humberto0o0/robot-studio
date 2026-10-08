@@ -35,15 +35,20 @@ for(const side of ['L','R']){
  assert(!modelNames.includes('Wrist under-cuff mechanism '+side),'Exposed old wrist joint remains on '+side);
 }
 console.log('PASS V7 hidden mechanical wrist joints and continuous cobalt sleeves');
-for(const j of [0,1,2,3]){
- for(const segment of ['upper white shell','distal ceramic','middle graphite pivot']){
-  assert(modelNames.includes('Finger R '+j+' '+segment),
-    'Missing V9 tapered finger '+j+' '+segment);
+// User-preferred presenting hand comes from the verified V8 design.
+for(let j=0;j<4;j++){
+ for(const item of ['upper white shell','distal ceramic','middle graphite pivot','rounded black pad']){
+  assert(modelNames.includes('Finger R '+j+' '+item),'Missing restored V8 presenting finger '+j+' '+item);
  }
- assert(modelNames.includes('Finger_R_'+j+'_Tip'),'Missing independent distal pivot '+j);
+ assert(modelNames.includes('Finger_R_'+j+'_Knuckle'),'Missing presenting knuckle '+j);
+ assert(modelNames.includes('Finger L '+j+' curled white segment'),'Missing microphone finger '+j);
+ assert(modelNames.includes('Finger L '+j+' curved porcelain fingertip'),'Missing clean gripping end '+j);
+ assert(modelNames.includes('Finger_L_'+j+'_Knuckle'),'Missing microphone knuckle '+j);
 }
-assert(modelNames.includes('Thumb R ceramic fingertip'),'Missing V9 rounded ceramic thumb');
-console.log('PASS V9 hand with individually controlled tapered fingers and sculpted thumb');
+assert(modelNames.includes('Thumb R porcelain base'),'Missing restored presenting thumb');
+assert(modelNames.includes('Thumb_L_Root'),'Missing opposing microphone thumb');
+assert(!modelNames.some(n=>/Finger L [0-3] (proximal porcelain curl|narrow graphite first joint|cyan joint inlay)/.test(n)),'Old duplicated microphone finger layers remain');
+console.log('PASS V10 restored presenting hand and four clean microphone fingers plus thumb');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
