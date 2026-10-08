@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.7, continuous tailored wrists.
+"""Robot Studio - procedural, editable Blender robot v0.8, clean tessellated collar and lapels.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -201,17 +201,54 @@ def suit_surface(x,z,offset=.018):
     return -.085-.554*math.sqrt(max(.07,1-u))-offset
 
 def front_patch(name,outline,material,offset=.05,bevel=None):
-    xyz=[(x,suit_surface(x,z,offset),z) for x,z in outline]
-    # Winding x/z clockwise may result in backfacing glTF polygons. Enforce
-    # CCW orientation in (x,z) so triangle normals face the viewer (-Y).
-    area=sum(outline[i][0]*outline[(i+1)%len(outline)][1]-
-             outline[(i+1)%len(outline)][0]*outline[i][1] for i in range(len(outline)))
-    if area<0:xyz.reverse()
-    obj=poly_mesh(name,xyz,[tuple(range(len(xyz)))],material,root)
+    """Surface-conforming, triangulated tailor panel.
+
+    Earlier these patches were single twisted N-gons placed over a convex
+    ellipsoid. GPU triangulation cut across the body, so the white shirt and
+    collar pierced the blue jacket as random bright shards. Tessellate the
+    2D silhouette first, then project small triangles onto the actual 3D suit
+    curve. This also gives consistent overlap on mobile WebGL.
+    """
+    from mathutils.geometry import tessellate_polygon
+    shape=list(outline)
+    area=sum(shape[i][0]*shape[(i+1)%len(shape)][1]-
+             shape[(i+1)%len(shape)][0]*shape[i][1] for i in range(len(shape)))
+    if area<0: shape.reverse()
+    triangles=tessellate_polygon([[Vector((x,z,0)) for x,z in shape]])
+    if not triangles:
+        raise RuntimeError("Cannot triangulate garment panel "+name)
+    coords=[];faces=[];lookup={}
+    subdivisions=9
+    def get_vertex(x,z):
+        key=(round(x,6),round(z,6))
+        if key not in lookup:
+            lookup[key]=len(coords)
+            coords.append((x,suit_surface(x,z,offset),z))
+        return lookup[key]
+    for original in triangles:
+        a,b,c=[Vector((p.x,p.y)) for p in original]
+        cross=(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)
+        if cross<0:b,c=c,b
+        def point(i,j):
+            q=a+(b-a)*(i/subdivisions)+(c-a)*(j/subdivisions)
+            return get_vertex(q.x,q.y)
+        for i in range(subdivisions):
+            for j in range(subdivisions-i):
+                faces.append((point(i,j),point(i+1,j),point(i,j+1)))
+                if j<subdivisions-i-1:
+                    faces.append((point(i+1,j),point(i+1,j+1),point(i,j+1)))
+    obj=poly_mesh(name,coords,faces,material,root)
+    # Explicit UVs keep fine jacket texture from getting stretched on the
+    # lapel and front panels. Give all surface triangles stable stitch scale.
+    uv=obj.data.uv_layers.new(name="Tailoring surface UV")
+    for poly in obj.data.polygons:
+        for loop_index in poly.loop_indices:
+            p=obj.data.vertices[obj.data.loops[loop_index].vertex_index].co
+            uv.data[loop_index].uv=(p.x*1.35+.5,p.z*1.35)
     if bevel:
-        sol=obj.modifiers.new("Hem thickness","SOLIDIFY")
-        sol.thickness=bevel
-        sol.offset=-1.0
+        solid=obj.modifiers.new("Tailored panel thickness","SOLIDIFY")
+        solid.thickness=min(bevel,.016)
+        solid.offset=-1.0
     return obj
 
 def stitched_line(name,pts,material=None,r=.007):
@@ -224,18 +261,21 @@ def stitched_line(name,pts,material=None,r=.007):
         b=(xx,suit_surface(xx,zz,.09),zz)
         tube(name+" "+str(n),a,b,r,material,root,10)
 
-# A clean sculpted V shirt opening is visible between the lapels.
+# A deliberately narrow, centered shirt bib stays INSIDE the tailored V.
+# Never let a white polygon cross out under the shoulder or pocket area.
 front_patch("White shirt V front",
- [(-.315,2.055),(-.245,1.89),(-.115,1.66),(0,1.47),
-  (.115,1.66),(.245,1.89),(.315,2.055)],
- shirt,.073)
-# Pointed white collar tips fold over the jacket near the neck.
+ [(-.207,2.028),(-.170,1.923),(-.087,1.739),(0,1.519),
+  (.087,1.739),(.170,1.923),(.207,2.028)],
+ shirt,.067)
+# Clean, symmetric pointed collar triangles frame the orange knot. The outer
+# edges tuck BEHIND both blue lapels, rather than piercing the jacket.
 for sign,label in [(-1,"L"),(1,"R")]:
     front_patch("Folded ivory collar "+label,
-     [(sign*.09,2.035),(sign*.30,2.078),(sign*.27,1.924),(sign*.115,1.87)],
-     shirt,.132)
+     [(sign*.082,2.039),(sign*.244,2.054),
+      (sign*.203,1.944),(sign*.115,1.884)],
+     shirt,.112,.006)
     stitched_line("Collar stitch "+label,
-     [(sign*.09,2.034),(sign*.27,1.925)],suit_lining,.006)
+     [(sign*.088,2.026),(sign*.200,1.943)],suit_lining,.005)
 
 # Two tailored lapel wings (not cubes). Five-vertex profiles converge into
 # a narrow deep V over the tie, using satin fabric contrast and seam piping.
@@ -243,7 +283,7 @@ for sign,label in [(-1,"L"),(1,"R")]:
     front_patch("Hand-tailored satin lapel "+label,
      [(sign*.615,2.025),(sign*.321,2.066),(sign*.205,1.881),
       (sign*.095,1.716),(sign*.475,1.838)],
-     suit_highlight,.120,.020)
+     suit_highlight,.156,.012)
     # Dark inward lapel seam follows the cloth edge.
     stitched_line("Lapel navy rolled edge "+label,
      [(sign*.319,2.058),(sign*.204,1.881),(sign*.095,1.716)],
@@ -264,14 +304,14 @@ for sign,label in [(-1,"L"),(1,"R")]:
 # ellipsoid shapes. Tip sits above the center jacket closure.
 orb("Silk tie double knot shadow",(0,-.708,1.960),(.108,.056,.093),tie_facet,root,32,22)
 front_patch("Orange necktie diamond knot",
- [(-.112,1.978),(0,2.044),(.112,1.978),(.083,1.905),(0,1.871),(-.082,1.905)],
- orange,.180,.013)
+ [(-.103,1.973),(0,2.032),(.103,1.973),(.078,1.909),(0,1.876),(-.078,1.909)],
+ orange,.208,.011)
 front_patch("Tailored orange silk blade",
  [(-.069,1.889),(.068,1.889),(.097,1.630),(0,1.523),(-.097,1.630)],
- orange,.199,.011)
+ orange,.220,.011)
 front_patch("Tie diagonal satin highlight",
  [(-.054,1.870),(-.012,1.864),(.020,1.635),(-.027,1.667)],
- tie_highlight,.219)
+ tie_highlight,.235)
 stitched_line("Fine necktie silk edge",[(-.075,1.85),(-.090,1.64),(0,1.530)],
  tie_facet,.006)
 
