@@ -1,0 +1,40 @@
+name: Mobile 3D Browser Smoke Test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "studio.html"
+      - "app/studio3d.js"
+      - "models/robot-prototype.glb"
+      - ".github/workflows/test-browser-3d.yml"
+      - "tests/smoke3d.cjs"
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test dependency
+        run: |
+          mkdir -p /tmp/robot-playwright
+          cd /tmp/robot-playwright
+          npm init -y >/dev/null
+          npm install --silent playwright@1.56.1
+      - name: Start local site and test iPhone-sized viewport
+        run: |
+          python3 -m http.server 8765 >/tmp/robot-http.log 2>&1 &
+          sleep 3
+          NODE_PATH=/tmp/robot-playwright/node_modules node tests/smoke3d.cjs
+      - name: Store browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-3d-mobile-smoke
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 14
