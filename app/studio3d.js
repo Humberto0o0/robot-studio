@@ -226,6 +226,11 @@ function animate3D(t,dt,loud){
     1.93+Math.sin(pitch)*dist+Math.sin(ph*.14)*.03,
     Math.cos(yaw)*Math.cos(pitch)*dist);
  camera.lookAt(0,1.93,0);
+ // UI-inspectable readout for accessibility and regression testing.
+ // Camera settings are preview-only interaction state and not personal data.
+ canvas.dataset.cameraYaw=state.angle.toFixed(3);
+ canvas.dataset.cameraPitch=state.pitch.toFixed(3);
+ canvas.dataset.cameraDistance=state.orbitDistance.toFixed(3);
  $('poseBadge').textContent=intro;
 }
 function drawPlaceholder(){
