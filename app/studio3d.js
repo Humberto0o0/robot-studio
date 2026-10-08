@@ -50,7 +50,7 @@ function findRig(model){
  rig=model;
  // Three.js glTF positions are anchored in real 3D, including shoulder/elbow joints.
  scene.add(rig);
- $('status').textContent=nodes['Eye emissive LED matrix L']&&nodes['Mouth open burgundy recess']?'3D ready · V2 expressive helmet':'3D ready';
+ $('status').textContent=Object.keys(nodes).some(n=>/Eye[_ ]emissive[_ ]LED[_ ]matrix[_ ]L/i.test(n))&&Object.keys(nodes).some(n=>/Mouth[_ ]open[_ ]burgundy[_ ]recess/i.test(n))?'3D ready · V2 expressive helmet':'3D ready';
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
