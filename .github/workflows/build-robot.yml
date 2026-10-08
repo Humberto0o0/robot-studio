@@ -1,0 +1,72 @@
+name: Build 3D Robot with Blender
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "blender/**"
+      - ".github/workflows/build-robot.yml"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out Robot Studio
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender
+          blender --version
+
+      - name: Generate editable Blender file and GLB
+        run: |
+          blender --background --factory-startup --python blender/build_robot.py
+          ls -lh models/
+          test -s models/robot-prototype.blend
+          test -s models/robot-prototype.glb
+
+      - name: Save downloadable 3D source files
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-studio-3d-model
+          path: |
+            models/robot-prototype.blend
+            models/robot-prototype.glb
+          retention-days: 30
+
+      - name: Commit generated models
+        run: |
+          git config user.name "robot-studio-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add models/robot-prototype.glb models/robot-prototype.blend
+          git diff --cached --quiet || git commit -m "Build robot 3D assets from Blender script"
+          git push
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
