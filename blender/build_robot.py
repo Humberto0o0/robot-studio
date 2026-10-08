@@ -123,15 +123,21 @@ for m in [navy,shell]:
     if "Coat Roughness" in node.inputs: node.inputs["Coat Roughness"].default_value=.10
 
 def poly_mesh(name, xyz, faces, material, parent):
+    # Input points are authored in Blender WORLD SPACE for easy visor surface
+    # projection. A custom mesh must store LOCAL vertices under its parent:
+    # otherwise GLB export applies the parent translation twice (eyes vanish).
+    bpy.context.view_layer.update()
+    world_to_parent=parent.matrix_world.inverted()
+    local_points=[tuple(world_to_parent @ Vector(p)) for p in xyz]
     mesh=bpy.data.meshes.new(name+"_Geometry")
-    mesh.from_pydata(xyz, [], faces)
+    mesh.from_pydata(local_points, [], faces)
     mesh.update()
     ob=bpy.data.objects.new(name,mesh)
     bpy.context.collection.objects.link(ob)
     ob.data.materials.append(material)
-    for f in ob.data.polygons:f.use_smooth=True
+    for face in ob.data.polygons: face.use_smooth=True
     ob.parent=parent
-    ob.matrix_parent_inverse=parent.matrix_world.inverted()
+    # Keep matrix_parent_inverse=identity; vertices are already parent-local.
     return ob
 
 head=pivot("Head_Pivot",(0,0,2.06),root)
