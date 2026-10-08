@@ -20,6 +20,7 @@ const state={ready:false,file:null,objectURL:null,duration:0,buffer:null,env:[],
  mouthValue:0,blinkValue:0,lastBlink:0,videoURL:null,gestureT:0};
 const settings={mouth:true,gestures:true,captions:true,blink:true,float:true,camera:true,energy:.6};
 let rig=null;
+let captureScale=1;
 let renderClock=performance.now();
 const glcanvas=document.createElement('canvas');
 glcanvas.width=VW;glcanvas.height=VH;
@@ -218,6 +219,7 @@ function drawPlaceholder(){
 }
 function render(now){
  requestAnimationFrame(render);
+ ctx.setTransform(captureScale,0,0,captureScale,0,0);
  const dt=clamp((now-renderClock)/1000,0,.08);renderClock=now;
  const t=state.duration?clamp(audio.currentTime||0,0,state.duration):0;
  state.t=t;
@@ -426,6 +428,14 @@ function saveFile(blob,name){
  setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 $('downloadPlan').addEventListener('click',exportJSON);
+function setRecordResolution(scale){
+ scale=scale===2?2:1;
+ if(captureScale===scale)return;
+ captureScale=scale;
+ canvas.width=VW*scale;canvas.height=VH*scale;
+ ctx.setTransform(scale,0,0,scale,0,0);
+ if(renderer)renderer.setSize(VW*scale,VH*scale,false);
+}
 async function captureAudio(){
  const ac=await audioContext();await ac.resume();
  if(!state.mediaSource){
@@ -449,6 +459,7 @@ async function beginRecord(){
   const mime=preferredMime();
   if(mime===null)throw Error('MediaRecorder is not available on this browser.');
   const input=await captureAudio();
+  setRecordResolution(Number($('quality').value));
   audio.pause();state.playing=false;audio.currentTime=0;
   const stream=canvas.captureStream(30);
   const tracks=[...stream.getVideoTracks(),...input.getAudioTracks()];
@@ -463,6 +474,7 @@ async function beginRecord(){
   rec.addEventListener('stop',()=>{
    const blob=new Blob(chunks,{type:rec.mimeType||mime||'video/webm'});
    stream.getVideoTracks().forEach(track=>track.stop());
+   setRecordResolution(1);
    state.record=null;state.recordStarted=false;
    $('record').textContent='● Record video';$('record').disabled=false;
    if(blob.size<1024){output.textContent='Recording ended without a usable file. Try another browser.';return;}
@@ -473,10 +485,10 @@ async function beginRecord(){
   rec.start(300);
   // Once recording begins, start the actual media element. Its audio is connected to the recorder.
   try{await audio.play();}catch(err){rec.stop();throw err;}
-  output.textContent='Recording vertical 540×960 with linked audio. Let the track finish for a complete video.';
+  output.textContent='Recording vertical '+canvas.width+'×'+canvas.height+' with linked audio. Let the track finish for a complete video.';
   $('record').textContent='■ Stop recording';
   state.playing=true;updateControls();
- }catch(err){output.textContent='Recording unavailable: '+String(err.message||err);state.record=null;state.recordStarted=false;$('record').textContent='● Record video';updateControls();}
+ }catch(err){output.textContent='Recording unavailable: '+String(err.message||err);state.record=null;state.recordStarted=false;setRecordResolution(1);$('record').textContent='● Record video';updateControls();}
 }
 function stopRecord(){const o=state.record;if(!o)return;try{if(o.rec.state!=='inactive'){o.rec.requestData();o.rec.stop();}}catch(err){$('exportState').textContent='Could not stop recorder: '+err.message;}}
 $('record').addEventListener('click',()=>{if(state.record){audio.pause();stopRecord();}else beginRecord();});
