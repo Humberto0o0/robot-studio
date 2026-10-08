@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.5, glossy cobalt materials and natural hands.
+"""Robot Studio - procedural, editable Blender robot v0.5, glossy cobalt and corrected presentation and microphone grips.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -520,101 +520,152 @@ for side,sign in [("L",-1),("R",1)]:
     wrist=pivot("Wrist_"+side,c,elbow)
     wrists[side]=wrist
 
-    # Palm is a smooth pearl-white glove, with articulated black knuckle sockets.
-    hand=(1.393,-.526,1.595) if side=="R" else (-.559,-.775,1.677)
-    orb("Hand_almoured_ceramic_palm_"+side,hand,(.174,.133,.163),
-        hand_shell,wrist,48,30)
-    orb("Palm black finger hinge rail "+side,
-        (hand[0]+sign*.085,hand[1]-.034,hand[2]),
-        (.10,.120,.133),knuckle_dark,wrist,38,24)
-    # Ceramic back-of-hand ridge catches light; thumb attaches independently.
-    orb("Hand pearlescent knuckle plate "+side,
-        (hand[0],hand[1]-.100,hand[2]+.016),
-        (.118,.040,.128),hand_shell,wrist,36,24)
-
+    # 3D wrist-to-hand geometry stays correctly connected to the cuff:
+    # anatomy is different for a microphone-gripping hand and open presenting palm.
     if side=="R":
-        # Four individual fingers fan toward the viewer; each has a proper
-        # knuckle + second hinge, two polished ceramic segments and dark tips.
+        # Open palm faces viewer (-Y). Knuckles project UP rather than sideways.
+        # The four fingers are spread across X, tips at upper Z, thumb points inward.
+        hand=(1.425,-.552,1.691)
+        orb("Hand_almoured_ceramic_palm_"+side,hand,(.220,.111,.184),
+            hand_shell,wrist,48,32)
+        orb("Palm graphite perimeter "+side,
+            (hand[0],hand[1]+.053,hand[2]),
+            (.202,.081,.162),knuckle_dark,wrist,40,28)
+        orb("Hand pearlescent knuckle plate "+side,
+            (hand[0],hand[1]-.086,hand[2]+.045),
+            (.194,.032,.111),hand_shell,wrist,44,24)
+        orb("Palm small engraved cobalt badge "+side,
+            (hand[0],hand[1]-.117,hand[2]-.025),
+            (.063,.009,.033),cuff_blue,wrist,32,18)
+
         for j in range(4):
-            dz=(j-1.5)*.074
-            base=(1.490,-.560,1.600+dz)
+            # Leftmost finger leans in, rightmost angles out, as a natural wave.
+            spread=(j-1.5)
+            base=(1.425+spread*.092,-.559,1.808-abs(spread)*.022)
             kn=pivot("Finger_R_"+str(j)+"_Knuckle",base,wrist)
             knuckle_pivots["R_"+str(j)]=kn
-            orb("Finger R "+str(j)+" graphite root",base,(.053,.059,.056),
-                knuckle_dark,wrist,26,16)
-            middle=(base[0]+.101,base[1]-.073+abs(j-1.5)*.020,base[2]+(j-1.5)*.014)
-            distal=(middle[0]+.068,middle[1]-.080,middle[2]+.012)
-            rot_link("Finger R "+str(j)+" upper white shell",base,middle,.045,hand_shell,kn)
-            # Dark break under both ceramic segments.
+            orb("Finger R "+str(j)+" graphite root",base,(.051,.051,.053),
+                knuckle_dark,wrist,28,18)
+            middle=(base[0]+spread*.033,base[1]-.065,
+                    base[2]+.160-abs(spread)*.014)
+            distal=(middle[0]+spread*.026,middle[1]-.045,
+                    middle[2]+.120-abs(spread)*.018)
+            rot_link("Finger R "+str(j)+" upper white shell",
+                     base,middle,.044,hand_shell,kn)
             orb("Finger R "+str(j)+" middle graphite pivot",middle,
-                (.047,.045,.047),knuckle_dark,kn,22,14)
+                (.046,.043,.046),knuckle_dark,kn,24,16)
             tip=pivot("Finger_R_"+str(j)+"_Tip",middle,kn)
             rot_link("Finger R "+str(j)+" distal ceramic",
-                     middle,distal,.040,hand_shell,tip)
+                     middle,distal,.038,hand_shell,tip)
             orb("Finger R "+str(j)+" rounded black pad",distal,
-                (.044,.041,.043),knuckle_dark,tip,24,16)
+                (.039,.036,.041),knuckle_dark,tip,24,16)
             orb("Finger R "+str(j)+" cyan knuckle bead",
-                (base[0]+.022,base[1]-.024,base[2]),
-                (.015,.016,.022),finger_cyan,kn,16,10)
-        # Outward rotating opposable thumb, two short segments and ball-tip.
-        thumb=pivot("Thumb_R_Root",(1.374,-.575,1.466),wrist)
+                (base[0],base[1]-.052,base[2]+.013),
+                (.024,.012,.018),finger_cyan,kn,18,12)
+        thumb=pivot("Thumb_R_Root",(1.224,-.566,1.633),wrist)
         thumbs[side]=thumb
-        t0=(1.376,-.575,1.464);t1=(1.293,-.687,1.435);t2=(1.278,-.759,1.471)
-        orb("Thumb R black basal hinge",t0,(.062,.062,.064),
-            knuckle_dark,wrist,28,16)
-        rot_link("Thumb R porcelain base",t0,t1,.060,hand_shell,thumb)
-        orb("Thumb R black knuckle",t1,(.052,.053,.050),
+        t0=(1.224,-.566,1.633)
+        t1=(1.154,-.677,1.658)
+        t2=(1.200,-.728,1.710)
+        orb("Thumb R black basal hinge",t0,(.060,.058,.060),
+            knuckle_dark,wrist,28,18)
+        rot_link("Thumb R porcelain base",t0,t1,.057,hand_shell,thumb)
+        orb("Thumb R black knuckle",t1,(.048,.048,.049),
             knuckle_dark,thumb,26,18)
-        rot_link("Thumb R tip ceramic",t1,t2,.047,hand_shell,thumb)
-        orb("Thumb R dark contact pad",t2,(.046,.049,.043),
-            knuckle_dark,thumb,22,16)
+        rot_link("Thumb R tip ceramic",t1,t2,.043,hand_shell,thumb)
+        orb("Thumb R dark contact pad",t2,(.041,.041,.040),
+            knuckle_dark,thumb,24,16)
     else:
-        # The microphone hand is sculpted into a natural curl, not four rods
-        # projecting outward. Individual curved fingers wrap around its handle.
+        # Opposite hand is intentionally curved toward the microphone.
+        # Its front-facing fingers wrap round the shaft at four heights,
+        # with thumb contacting the other side of the metal grip.
+        hand=(-.556,-.758,1.686)
+        orb("Hand_almoured_ceramic_palm_"+side,hand,(.178,.145,.193),
+            hand_shell,wrist,48,32)
+        orb("Palm black finger hinge rail "+side,
+            (-.493,-.811,1.701),(.096,.096,.162),
+            knuckle_dark,wrist,38,24)
+        orb("Hand pearlescent knuckle plate "+side,
+            (-.575,-.881,1.703),(.110,.039,.135),
+            hand_shell,wrist,40,26)
         for j in range(4):
-            z=1.805-j*.066
-            base=(-.554,-.824,z)
+            z=1.854-j*.073
+            base=(-.550,-.818,z)
             kn=pivot("Finger_L_"+str(j)+"_Knuckle",base,wrist)
             knuckle_pivots["L_"+str(j)]=kn
-            orb("Finger L "+str(j)+" black hinge",base,(.050,.049,.051),
-                knuckle_dark,wrist,24,14)
-            mid=(-.465,-.920,z-.010)
-            tip=(-.432,-.964,z-.069)
+            orb("Finger L "+str(j)+" black hinge",base,
+                (.049,.046,.048),knuckle_dark,wrist,24,16)
+            # Three dimensional gripping bend, curling round microphone tube.
+            mid=(-.474,-.918,z-.006)
+            tip=(-.407,-.988,z-.058)
             rot_link("Finger L "+str(j)+" curled white segment",
-                     base,mid,.047,hand_shell,kn)
+                     base,mid,.046,hand_shell,kn)
             orb("Finger L "+str(j)+" second black joint",mid,
-                (.044,.042,.045),knuckle_dark,kn,24,14)
+                (.044,.041,.045),knuckle_dark,kn,24,16)
             distal=pivot("Finger_L_"+str(j)+"_Tip",mid,kn)
             rot_link("Finger L "+str(j)+" curled black tip",mid,tip,
-                     .039,hand_shell,distal)
+                     .040,hand_shell,distal)
             orb("Finger L "+str(j)+" contact fingertip",tip,
-                (.046,.045,.041),knuckle_dark,distal,20,14)
-        thumb=pivot("Thumb_L_Root",(-.598,-.850,1.593),wrist)
+                (.041,.043,.040),knuckle_dark,distal,24,16)
+            orb("Finger L "+str(j)+" cyan joint inlay",
+                (mid[0],mid[1]-.043,mid[2]),
+                (.025,.009,.018),finger_cyan,kn,18,12)
+        thumb=pivot("Thumb_L_Root",(-.616,-.848,1.577),wrist)
         thumbs[side]=thumb
-        t0=(-.605,-.857,1.601);t1=(-.489,-.917,1.576);t2=(-.454,-.954,1.639)
-        orb("Thumb L black basal joint",t0,(.059,.061,.060),
-            knuckle_dark,wrist,24,14)
-        rot_link("Thumb L ceramic gripping segment",t0,t1,.060,hand_shell,thumb)
-        orb("Thumb L black bent knuckle",t1,(.055,.056,.053),
-            knuckle_dark,thumb,24,14)
-        rot_link("Thumb L gripping end",t1,t2,.047,hand_shell,thumb)
-        orb("Thumb L rounded graphite pad",t2,(.044,.041,.041),
-            knuckle_dark,thumb,22,14)
+        t0=(-.617,-.844,1.579)
+        t1=(-.510,-.930,1.557)
+        t2=(-.461,-.976,1.618)
+        orb("Thumb L black basal joint",t0,(.060,.059,.058),
+            knuckle_dark,wrist,28,16)
+        rot_link("Thumb L ceramic gripping segment",t0,t1,.054,hand_shell,thumb)
+        orb("Thumb L black bent knuckle",t1,(.050,.048,.051),
+            knuckle_dark,thumb,24,16)
+        rot_link("Thumb L gripping end",t1,t2,.044,hand_shell,thumb)
+        orb("Thumb L rounded graphite pad",t2,(.043,.042,.042),
+            knuckle_dark,thumb,24,16)
 
-# Microphone remains attached to the left wrist, and hand fingers curl around
-# its handle. Better metallic finish and scaled mesh cap for a professional mic.
-tube("Microphone sculpted satin graphite grip",(-.480,-.936,1.444),
-     (-.440,-.944,2.003),.067,knuckle_dark,wrists["L"])
-orb("Microphone steel capsule grille",(-.438,-.943,2.076),
-    (.165,.162,.184),steel,wrists["L"],48,28)
-orb("Microphone metallic blue neck",(-.442,-.945,1.952),
-    (.097,.095,.033),cuff_blue,wrists["L"],36,22)
-orb("Microphone blue illuminated collar",(-.442,-.949,1.973),
-    (.112,.102,.020),finger_cyan,wrists["L"],32,22)
-for i in range(4):
-    z=2.020+i*.028
-    orb("Microphone grille metallic woven band "+str(i),(-.440,-.943,z),
-        (.153-.004*i,.155-.004*i,.0065),knuckle_dark,wrists["L"],32,12)
+# A metallic satin-black microphone with a knitted-wire capsule. The handle
+# passes physically between fingers and palm; headset blue lighting matches the robot.
+mic_grip=mat("Mic satin-metal black handle",(.045,.061,.080),.86,.17)
+mic_wire=mat("Mic interwoven graphite grille mesh",(.21,.28,.34),.88,.20)
+mic_gap=mat("Mic perforation shadows",(.011,.018,.027),.18,.44)
+mic_trim=mat("Mic polished stainless gunmetal bands",(.20,.35,.46),.87,.12)
+mic_cyan=mat("Mic cobalt cyan illuminated accent",(.015,.52,.96),.22,.18,1.25)
+
+tube("Microphone sculpted satin graphite grip",
+     (-.480,-.932,1.442),(-.441,-.944,1.994),.064,mic_grip,wrists["L"],32)
+for k in range(5):
+    z=1.495+k*.089
+    orb("Microphone grip fine machine-turned rings "+str(k),
+        (-.476+.005*k,-.934,z),(.073,.070,.006),mic_trim,wrists["L"],36,14)
+orb("Microphone polished blue neck",
+    (-.442,-.943,1.973),(.107,.101,.030),cuff_blue,wrists["L"],40,22)
+orb("Microphone blue illuminated collar",
+    (-.440,-.943,2.002),(.110,.105,.017),mic_cyan,wrists["L"],40,20)
+orb("Microphone steel capsule grille",
+    (-.438,-.944,2.087),(.164,.162,.188),mic_gap,wrists["L"],48,32)
+# Woven steel latitude and meridian arcs create genuine mesh lines,
+# yet remain light enough for Safari/WebGL.
+for k in range(11):
+    z=1.958+k*.0235
+    frac=(z-2.087)/.188
+    rr=.163*math.sqrt(max(.025,1-frac*frac))
+    ring("Microphone woven latitude "+str(k),
+        (-.438,-.944,z),rr,.0037,mic_wire,wrists["L"])
+for k in range(16):
+    theta=2*math.pi*k/16
+    vertices=[]
+    for i in range(17):
+        z=1.934+i*.0188
+        frac=(z-2.087)/.188
+        rr=.163*math.sqrt(max(.018,1-frac*frac))
+        vertices.append((-.438+rr*math.cos(theta),
+                         -.944+rr*math.sin(theta),z))
+    for i in range(len(vertices)-1):
+        tube("Microphone woven meridian "+str(k)+" "+str(i),
+             vertices[i],vertices[i+1],.0032,mic_wire,wrists["L"],8)
+orb("Microphone thin cobalt lower capsule seam",
+    (-.438,-.943,1.947),(.130,.128,.011),mic_trim,wrists["L"],36,16)
 
 ring("Hover ground ring",(0,0,.36),.74,.044,cyan,root)
 orb("Hover core",(0,0,.51),(.26,.26,.09),cyan,root)
