@@ -48,6 +48,10 @@ for(let j=0;j<4;j++){
 assert(modelNames.includes('Thumb R porcelain base'),'Missing restored presenting thumb');
 assert(modelNames.includes('Thumb_L_Root'),'Missing opposing microphone thumb');
 assert(!modelNames.some(n=>/Finger L [0-3] (proximal porcelain curl|narrow graphite first joint|cyan joint inlay)/.test(n)),'Old duplicated microphone finger layers remain');
+assert(modelNames.filter(n=>/^Finger L [0-3] curled white segment$/.test(n)).length===4,
+ 'Exactly four white gripping fingers must be exported');
+assert(modelNames.filter(n=>/^Thumb_L_Root$/.test(n)).length===1,
+ 'Exactly one microphone thumb must be exported');
 console.log('PASS V10 restored presenting hand and four clean microphone fingers plus thumb');
 
 (async()=>{
