@@ -468,12 +468,12 @@ stage.addEventListener('pointermove',e=>{
   if(g.n===1){
    // Horizontal movement is deliberately unrestricted: full rotations.
    state.angle+=(g.x-lastGesture.x)*.012;
-   state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.0085,-1.12,1.12);
+   state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.0085,-1.535,1.535);
   }else{
    // Pinch out = closer to robot; pinch in = further away.
    zoomCamera(lastGesture.spread/g.spread);
    state.angle+=(g.x-lastGesture.x)*.004;
-   state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.003,-1.12,1.12);
+   state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.003,-1.535,1.535);
   }
  }
  writeCameraState();
@@ -498,6 +498,7 @@ document.querySelectorAll('[data-camera-control]').forEach(btn=>
    case 'right': state.angle+=.34;break;
    case 'in': zoomCamera(.79);break;
    case 'out': zoomCamera(1.27);break;
+   case 'top': state.pitch=1.535;state.orbitDistance=6.9;break;
    case 'reset': resetCamera();break;
   }
   writeCameraState();
