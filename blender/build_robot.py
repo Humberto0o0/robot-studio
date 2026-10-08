@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.2, expressive face.
+"""Robot Studio - procedural, editable Blender robot v0.3, tailored cobalt suit.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -94,16 +94,6 @@ def ring(name, center, major, minor, material, parent=None, rotation=None):
 
 root=pivot("Robot_Root",(0,0,0))
 orb("Floating rounded body",(0,0,1.27),(.74,.54,.73),shell,root)
-orb("Royal blue suit torso",(0,-.095,1.67),(.79,.55,.55),blue,root)
-orb("White shirt chest",(0,-.57,1.78),(.29,.08,.40),shell,root)
-block("Blue jacket left lapel",(-.34,-.51,1.88),(.28,.10,.30),blue,root,.08)
-block("Blue jacket right lapel",(.34,-.51,1.88),(.28,.10,.30),blue,root,.08)
-orb("Orange tie knot",(0,-.679,1.98),(.10,.055,.10),orange,root)
-orb("Orange tie",(0,-.686,1.73),(.086,.048,.23),orange,root)
-orb("Orange pocket square",(.51,-.53,1.86),(.12,.028,.068),orange,root)
-orb("Jacket button",(0,-.635,1.43),(.065,.045,.065),black,root)
-orb("Jacket button trim",(0,-.678,1.43),(.03,.012,.03),steel,root)
-
 # Robot Studio V2: independent art direction for the HELMET, VISOR and
 # EXPRESSION RIG. All geometry below is real Blender mesh data, not an AI image.
 # Eye and mouth object names are stable identifiers consumed by studio3d.js.
@@ -140,6 +130,166 @@ def poly_mesh(name, xyz, faces, material, parent):
     # Keep matrix_parent_inverse=identity; vertices are already parent-local.
     return ob
 
+
+# V3 tailor-made cobalt jacket. Geometry and tiny woven material detail export as
+# authentic glTF textures; no flat reference PNGs or box-shaped lapel primitives.
+shirt=mat("Silky ivory shirt",(.94,.975,1),.025,.30)
+suit_lining=mat("Jacket navy shadow piping",(.008,.025,.10),.11,.45)
+suit_highlight=mat("Cobalt satin lapel facing",(.037,.19,.92),.25,.29)
+fabric_shadow=mat("Blue jacket edge shadow",(.014,.078,.43),.13,.53)
+metal_button=mat("Antique graphite metal button",(.12,.15,.21),.82,.19)
+button_glint=mat("Button champagne rim",(.54,.35,.14),.65,.19)
+tie_facet=mat("Orange silk dark facet",(.65,.10,.015),.10,.32)
+tie_highlight=mat("Orange silk highlight",(.99,.42,.035),.15,.24)
+
+def weave_image(name, normal=False, size=128):
+    # Generated native Blender image, embedded into GLB and packed into .blend.
+    # Small seamless basket weave instead of a GPU-expensive shader.
+    img=bpy.data.images.new(name,width=size,height=size,alpha=True)
+    pixels=[]
+    for iy in range(size):
+        for ix in range(size):
+            u=(ix%12)/12.0;v=(iy%12)/12.0
+            warp=.5+.5*math.cos(2*math.pi*u)
+            weft=.5+.5*math.cos(2*math.pi*v)
+            vstripe=math.sin(2*math.pi*ix/6)
+            hstripe=math.sin(2*math.pi*iy/6)
+            checker=(1 if (ix//6+iy//6)%2==0 else -1)
+            if normal:
+                # Tangent-space micro-normal for visible light-catching weave.
+                pixels.extend((.5+.14*vstripe,.5+.14*hstripe,.96,1))
+            else:
+                gain=.91+.075*warp+.045*weft+.035*checker
+                pixels.extend((.018*gain,.125*gain,.79*gain,1))
+    img.pixels[:]=pixels
+    img.pack()
+    return img
+
+fabric_color=weave_image("Cobalt basket weave albedo")
+fabric_normal=weave_image("Cobalt basket weave tangent normal",True)
+woven=mat("Royal blue woven suit fabric",(.014,.14,.80),.08,.58)
+fabric_bsdf=woven.node_tree.nodes.get("Principled BSDF")
+tex=woven.node_tree.nodes.new("ShaderNodeTexImage")
+tex.name="PBR Fabric Base Color"
+tex.image=fabric_color
+tex.interpolation="Linear"
+woven.node_tree.links.new(tex.outputs["Color"],fabric_bsdf.inputs["Base Color"])
+ntex=woven.node_tree.nodes.new("ShaderNodeTexImage")
+ntex.name="PBR Micro Weave Normal"
+ntex.image=fabric_normal
+ntex.image.colorspace_settings.name="Non-Color"
+nm=woven.node_tree.nodes.new("ShaderNodeNormalMap")
+nm.inputs["Strength"].default_value=.16
+woven.node_tree.links.new(ntex.outputs["Color"],nm.inputs["Color"])
+woven.node_tree.links.new(nm.outputs["Normal"],fabric_bsdf.inputs["Normal"])
+
+# Silhouette: rounded shoulders, clean fitted jacket with tapered waist.
+# White floating base stays; suit jacket covers the old spherical shirt outline.
+orb("Suit tailored rounded base",(0,-.085,1.69),(.798,.554,.536),woven,root,64,40)
+orb("Suit lower curved hem",(0,-.12,1.40),(.665,.457,.268),woven,root,48,28)
+
+def suit_surface(x,z,offset=.018):
+    # The outer suit is ellipsoidal; shift front polygons toward -Y to prevent
+    # z-fighting and stiff-looking square overlays.
+    u=(x/.798)**2+((z-1.69)/.536)**2
+    return -.085-.554*math.sqrt(max(.07,1-u))-offset
+
+def front_patch(name,outline,material,offset=.05,bevel=None):
+    xyz=[(x,suit_surface(x,z,offset),z) for x,z in outline]
+    # Winding x/z clockwise may result in backfacing glTF polygons. Enforce
+    # CCW orientation in (x,z) so triangle normals face the viewer (-Y).
+    area=sum(outline[i][0]*outline[(i+1)%len(outline)][1]-
+             outline[(i+1)%len(outline)][0]*outline[i][1] for i in range(len(outline)))
+    if area<0:xyz.reverse()
+    obj=poly_mesh(name,xyz,[tuple(range(len(xyz)))],material,root)
+    if bevel:
+        sol=obj.modifiers.new("Hem thickness","SOLIDIFY")
+        sol.thickness=bevel
+        sol.offset=-1.0
+    return obj
+
+def stitched_line(name,pts,material=None,r=.007):
+    # Object follows the true suit curve; actual cylindrical stitching is
+    # portable to GLB (not a nonexportable Blender-only line overlay).
+    if material is None:material=suit_lining
+    for n in range(len(pts)-1):
+        x,z=pts[n];xx,zz=pts[n+1]
+        a=(x,suit_surface(x,z,.09),z)
+        b=(xx,suit_surface(xx,zz,.09),zz)
+        tube(name+" "+str(n),a,b,r,material,root,10)
+
+# A clean sculpted V shirt opening is visible between the lapels.
+front_patch("White shirt V front",
+ [(-.315,2.055),(-.245,1.89),(-.115,1.66),(0,1.47),
+  (.115,1.66),(.245,1.89),(.315,2.055)],
+ shirt,.073)
+# Pointed white collar tips fold over the jacket near the neck.
+for sign,label in [(-1,"L"),(1,"R")]:
+    front_patch("Folded ivory collar "+label,
+     [(sign*.09,2.035),(sign*.30,2.078),(sign*.27,1.924),(sign*.115,1.87)],
+     shirt,.132)
+    stitched_line("Collar stitch "+label,
+     [(sign*.09,2.034),(sign*.27,1.925)],suit_lining,.006)
+
+# Two tailored lapel wings (not cubes). Five-vertex profiles converge into
+# a narrow deep V over the tie, using satin fabric contrast and seam piping.
+for sign,label in [(-1,"L"),(1,"R")]:
+    front_patch("Hand-tailored satin lapel "+label,
+     [(sign*.615,2.025),(sign*.321,2.066),(sign*.205,1.881),
+      (sign*.095,1.716),(sign*.475,1.838)],
+     suit_highlight,.120,.020)
+    # Dark inward lapel seam follows the cloth edge.
+    stitched_line("Lapel navy rolled edge "+label,
+     [(sign*.319,2.058),(sign*.204,1.881),(sign*.095,1.716)],
+     suit_lining,.010)
+    stitched_line("Lapel cobalt top stitch "+label,
+     [(sign*.606,2.013),(sign*.474,1.834),(sign*.096,1.712)],
+     woven,.006)
+    # Lower jacket fronts taper into a visually clean center closure.
+    front_patch("Tailored jacket front "+label,
+     [(sign*.72,1.83),(sign*.54,1.74),(sign*.102,1.485),
+      (sign*.041,1.321),(sign*.48,1.325),(sign*.715,1.5)],
+     woven,.079)
+    stitched_line("Jacket outer curved hem "+label,
+     [(sign*.68,1.49),(sign*.47,1.324),(sign*.07,1.318)],
+     fabric_shadow,.009)
+
+# Folded silk tie: sculpted diamond blade with two-sided relief, not yellow
+# ellipsoid shapes. Tip sits above the center jacket closure.
+orb("Silk tie double knot shadow",(0,-.708,1.960),(.108,.056,.093),tie_facet,root,32,22)
+front_patch("Orange necktie diamond knot",
+ [(-.112,1.978),(0,2.044),(.112,1.978),(.083,1.905),(0,1.871),(-.082,1.905)],
+ orange,.180,.013)
+front_patch("Tailored orange silk blade",
+ [(-.069,1.889),(.068,1.889),(.097,1.630),(0,1.523),(-.097,1.630)],
+ orange,.199,.011)
+front_patch("Tie diagonal satin highlight",
+ [(-.054,1.870),(-.012,1.864),(.020,1.635),(-.027,1.667)],
+ tie_highlight,.219)
+stitched_line("Fine necktie silk edge",[(-.075,1.85),(-.090,1.64),(0,1.530)],
+ tie_facet,.006)
+
+# Chest welt, triangular silk pocket square and matching jacket pocket seams.
+for sign,label in [(-1,"L"),(1,"R")]:
+    front_patch("Decorative hip pocket "+label,
+     [(sign*.39,1.535),(sign*.661,1.55),(sign*.623,1.487),(sign*.385,1.481)],
+     suit_highlight,.104)
+    stitched_line("Pocket dark welt "+label,
+     [(sign*.39,1.531),(sign*.660,1.545)],suit_lining,.009)
+front_patch("Suit breast pocket welt",
+ [(.401,1.881),(.632,1.882),(.629,1.838),(.407,1.835)],
+ fabric_shadow,.127)
+front_patch("Orange silk pocket fold 1",
+ [(.431,1.868),(.464,1.965),(.518,1.874)],orange,.157)
+front_patch("Orange silk pocket fold 2",
+ [(.498,1.868),(.568,1.948),(.610,1.864)],tie_highlight,.163)
+stitched_line("Chest welt seam",[(.398,1.838),(.63,1.837)],suit_lining,.010)
+
+# One engraved metal button in a recessed metal trim, near the crossing panels.
+orb("Jacket button dark seat",(0,-.740,1.391),(.076,.028,.075),suit_lining,root,32,20)
+orb("Jacket button brushed graphite",(0,-.766,1.391),(.060,.017,.061),metal_button,root,32,20)
+ring("Jacket button champagne metal lip",(0,-.789,1.391),.045,.006,button_glint,root,rotation=(math.pi/2,0,0))
+
 head=pivot("Head_Pivot",(0,0,2.06),root)
 orb("Helmet / pearl white ceramic",(0,0,2.65),(1.052,.824,.82),shell,head,64,44)
 # Three concentric ellipsoids form a thick visible white bezel, a narrow dark
@@ -151,9 +301,7 @@ orb("Visor curved midnight glass",(0,-.662,2.727),(.876,.259,.461),navy,head,72,
 # A polished blue crest is integrated with the helmet, rather than a flat block.
 orb("Cobalt forehead enamel plate",(0,-.055,3.395),(.367,.655,.105),edge,head,48,28)
 orb("Cobalt crest glint",(0,-.18,3.473),(.205,.31,.017),blue,head,48,16)
-# Tiny reflective accents high on the curved visor; these sit behind eyes.
-orb("Glass upper left reflection",(-.52,-.842,3.01),(.115,.016,.027),glass_sheen,head,32,16)
-orb("Glass upper right reflection",(.52,-.842,3.01),(.11,.016,.021),glass_sheen,head,32,16)
+# Keep the upper visor uncluttered: the cyan smile-eyes are the only brows.
 
 for sign,label in [(-1,"L"),(1,"R")]:
     # White/blue layered ear cups, metallic separation ring and cyan light core.
@@ -213,8 +361,7 @@ for sign,label in [(-1,"L"),(1,"R")]:
     eye=pivot("Eye_"+label,(cx,visor_depth(cx,2.74,.02),2.73),head)
     curved_strip("Eye diffuser arc "+label,cx,2.675,.267,.193,.047,led_bg,eye,.035)
     matrix_pixels("Eye emissive LED matrix "+label,cx,2.675,.265,.193,.145,eye)
-    # The two eyebrows are slim bright arcs, separately positioned above the eyes.
-    curved_strip("Cute eyebrow "+label,cx,2.975,.154,.068,.014,led_px,head,.048,24)
+    # No separate brow mesh: LED arcs provide the single cute eye expression.
 
 # Sculpted 3D grin flush with the helmet's lower white ceramic shell.
 # Curved face polygons follow its elliptical surface (not flat sphere overlays).
@@ -270,17 +417,22 @@ wrists={}
 for side,sign in [("L",-1),("R",1)]:
     shoulder=pivot("Shoulder_"+side,(sign*.77,-.03,1.87),root)
     shoulders[side]=shoulder
-    orb("Shoulder socket "+side,(sign*.77,-.03,1.87),(.23,.22,.25),black,root)
-    orb("Shoulder glowing rim "+side,(sign*.80,-.045,1.87),(.175,.24,.18),cyan,root)
+    orb("Shoulder hidden joint "+side,(sign*.77,-.03,1.87),(.208,.205,.213),black,root)
+    orb("Shoulder mechanical trim "+side,(sign*.80,-.045,1.87),(.160,.205,.172),edge,root)
     a=(sign*.84,-.055,1.85)
     b=(sign*1.23,-.16,1.53)
-    tube("Jacket upper arm "+side,a,b,.21,blue,shoulder)
-    orb("Elbow sleeve "+side,b,(.22,.23,.22),blue,shoulder)
+    tube("Jacket upper arm "+side,a,b,.21,woven,shoulder)
+    orb("Elbow sleeve "+side,b,(.22,.23,.22),woven,shoulder)
     el=pivot("Elbow_"+side,b,shoulder)
     elbows[side]=el
+    # A sewn upper-shoulder cap rotates with the arm, hiding the black socket
+    # and preventing a floating detached upper sleeve.
+    orb("Tailored sleeve shoulder cap "+side,
+        (sign*.824,-.060,1.858),(.265,.262,.243),woven,shoulder,40,26)
+    # Narrow metal hinge is behind the cloth instead of a front-facing gap.
     # Both forearms are shortened and visually thick; no gaps between the segments.
     c=(sign*1.49,-.43,1.50) if side=="R" else (-.64,-.73,1.61)
-    tube("Jacket forearm "+side,b,c,.195,blue,el)
+    tube("Jacket forearm "+side,b,c,.195,woven,el)
     orb("Wrist ring "+side,c,(.21,.21,.17),cyan,el)
     wrist=pivot("Wrist_"+side,c,el)
     wrists[side]=wrist
