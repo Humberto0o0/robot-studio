@@ -1,5 +1,6 @@
 const {chromium}=require('playwright');
 const fs=require('fs');
+setTimeout(()=>{console.error('SMOKE TIMEOUT after 85 seconds');process.exit(2);},85000).unref();
 const assert=require('assert');
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
@@ -8,8 +9,10 @@ const assert=require('assert');
  page.on('pageerror',error=>{errors.push(String(error));console.log('PAGEERROR',String(error))});
  page.on('console',message=>{if(message.type()==='error')console.log('CONSOLE',message.text())});
  fs.mkdirSync('test-results',{recursive:true});
- await page.goto('http://127.0.0.1:8765/studio.html',{waitUntil:'domcontentloaded',timeout:45000});
- await page.waitForFunction(()=>document.getElementById('status').textContent.includes('3D ready'),{timeout:45000}).catch(async()=>{console.log('STATUS',await page.locator('#status').innerText());});
+ console.log('Launching Chrome at 390×844');
+ await page.goto('http://127.0.0.1:8765/studio.html',{waitUntil:'domcontentloaded',timeout:30000});
+ console.log('Navigation done. status:',await page.locator('#status').innerText());
+ await page.waitForFunction(()=>document.getElementById('status').textContent.includes('3D ready'),null,{timeout:20000}).catch(async()=>{console.log('STATUS',await page.locator('#status').innerText());});
  const status=await page.locator('#status').innerText();
  assert(status.includes('3D ready'),'Real glTF model did not load: '+status);
  console.log('PASS 3D model loaded',status);
@@ -36,4 +39,4 @@ const assert=require('assert');
  assert(!errors.length,'Browser page exceptions: '+errors.join('; '));
  await browser.close();
  console.log('ALL MOBILE 3D BROWSER SMOKE TESTS PASSED');
-})().catch(e=>{console.error('SMOKE FAILED',e.stack||e);process.exitCode=1;});
+})().catch(e=>{console.error('SMOKE FAILED',e.stack||e);process.exit(1);});
