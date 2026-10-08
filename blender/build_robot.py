@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.5, glossy cobalt and corrected presentation and microphone grips.
+"""Robot Studio - procedural, editable Blender robot v0.6, natural microphone hand grip.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -576,53 +576,73 @@ for side,sign in [("L",-1),("R",1)]:
         orb("Thumb R dark contact pad",t2,(.041,.041,.040),
             knuckle_dark,thumb,24,16)
     else:
-        # Opposite hand is intentionally curved toward the microphone.
-        # Its front-facing fingers wrap round the shaft at four heights,
-        # with thumb contacting the other side of the metal grip.
-        hand=(-.556,-.758,1.686)
-        orb("Hand_almoured_ceramic_palm_"+side,hand,(.178,.145,.193),
-            hand_shell,wrist,48,32)
+        # V6: microphone grip with a real inward-facing palm. Previously the
+        # palm was a forward-pointing globe and fingertip beads lined the OUTER
+        # right edge of the microphone, giving an upside-down / backward grip.
+        # The palm now sits behind and to the LEFT of the handle (camera view),
+        # while slim fingers cross its front and curve AROUND the cylinder.
+        #
+        # Coordinates are Blender world-space before the wrist parenting:
+        # microphone shaft roughly x=-.46, y=-.94, z=1.45..2.00.
+        palm_center=(-.613,-.819,1.696)
+        orb("Hand_almoured_ceramic_palm_"+side,
+            palm_center,(.140,.108,.176),hand_shell,wrist,48,30)
+        # Graphite seam is mostly hidden inside the glove, not a row of balls.
         orb("Palm black finger hinge rail "+side,
-            (-.493,-.811,1.701),(.096,.096,.162),
-            knuckle_dark,wrist,38,24)
+            (-.550,-.837,1.718),(.047,.072,.137),
+            knuckle_dark,wrist,32,22)
         orb("Hand pearlescent knuckle plate "+side,
-            (-.575,-.881,1.703),(.110,.039,.135),
-            hand_shell,wrist,40,26)
+            (-.617,-.901,1.731),(.112,.025,.123),
+            hand_shell,wrist,40,22)
+
         for j in range(4):
-            z=1.854-j*.073
-            base=(-.550,-.818,z)
+            # Fingers lie at four heights, curl from back-left over the near
+            # side of the mic, then turn behind it with dark contact pads.
+            z=1.833-j*.067
+            base=(-.568,-.860,z)
             kn=pivot("Finger_L_"+str(j)+"_Knuckle",base,wrist)
             knuckle_pivots["L_"+str(j)]=kn
-            orb("Finger L "+str(j)+" black hinge",base,
-                (.049,.046,.048),knuckle_dark,wrist,24,16)
-            # Three dimensional gripping bend, curling round microphone tube.
-            mid=(-.474,-.918,z-.006)
-            tip=(-.407,-.988,z-.058)
+            orb("Finger L "+str(j)+" black hinge",
+                base,(.038,.038,.041),knuckle_dark,wrist,24,16)
+            m1=(-.536,-.998,z-.004)
+            m2=(-.461,-1.034,z-.027)
+            tip=(-.423,-.971,z-.063)
+
+            rot_link("Finger L "+str(j)+" proximal porcelain curl",
+                     base,m1,.040,hand_shell,kn)
+            orb("Finger L "+str(j)+" narrow graphite first joint",
+                m1,(.034,.032,.034),knuckle_dark,kn,22,16)
+            # Retain old named segment for existing GLB tests/readers.
             rot_link("Finger L "+str(j)+" curled white segment",
-                     base,mid,.046,hand_shell,kn)
-            orb("Finger L "+str(j)+" second black joint",mid,
-                (.044,.041,.045),knuckle_dark,kn,24,16)
-            distal=pivot("Finger_L_"+str(j)+"_Tip",mid,kn)
-            rot_link("Finger L "+str(j)+" curled black tip",mid,tip,
-                     .040,hand_shell,distal)
-            orb("Finger L "+str(j)+" contact fingertip",tip,
-                (.041,.043,.040),knuckle_dark,distal,24,16)
+                     m1,m2,.036,hand_shell,kn)
+            distal=pivot("Finger_L_"+str(j)+"_Tip",m2,kn)
+            rot_link("Finger L "+str(j)+" curled black tip",
+                     m2,tip,.030,hand_shell,distal)
+            orb("Finger L "+str(j)+" contact fingertip",
+                tip,(.026,.030,.027),knuckle_dark,distal,22,14)
+            # A small restrained blue light dot, not exposed black knuckles.
             orb("Finger L "+str(j)+" cyan joint inlay",
-                (mid[0],mid[1]-.043,mid[2]),
-                (.025,.009,.018),finger_cyan,kn,18,12)
-        thumb=pivot("Thumb_L_Root",(-.616,-.848,1.577),wrist)
+                (m1[0],m1[1]-.029,m1[2]),
+                (.016,.009,.012),finger_cyan,kn,16,12)
+
+        # Opposable thumb enters from the LOWER left, gripping the near side.
+        # Keeping its knuckle below the four fingertips gives the mic a
+        # readable one-hand grasp instead of an inverted open-hand pose.
+        t0=(-.634,-.861,1.517)
+        thumb=pivot("Thumb_L_Root",t0,wrist)
         thumbs[side]=thumb
-        t0=(-.617,-.844,1.579)
-        t1=(-.510,-.930,1.557)
-        t2=(-.461,-.976,1.618)
-        orb("Thumb L black basal joint",t0,(.060,.059,.058),
-            knuckle_dark,wrist,28,16)
-        rot_link("Thumb L ceramic gripping segment",t0,t1,.054,hand_shell,thumb)
-        orb("Thumb L black bent knuckle",t1,(.050,.048,.051),
-            knuckle_dark,thumb,24,16)
-        rot_link("Thumb L gripping end",t1,t2,.044,hand_shell,thumb)
-        orb("Thumb L rounded graphite pad",t2,(.043,.042,.042),
-            knuckle_dark,thumb,24,16)
+        t1=(-.544,-.991,1.547)
+        t2=(-.459,-1.008,1.576)
+        orb("Thumb L black basal joint",
+            t0,(.049,.048,.050),knuckle_dark,wrist,24,16)
+        rot_link("Thumb L ceramic gripping segment",
+                 t0,t1,.052,hand_shell,thumb)
+        orb("Thumb L black bent knuckle",
+            t1,(.039,.040,.040),knuckle_dark,thumb,22,14)
+        rot_link("Thumb L gripping end",
+                 t1,t2,.040,hand_shell,thumb)
+        orb("Thumb L rounded graphite pad",
+            t2,(.026,.030,.027),knuckle_dark,thumb,20,14)
 
 # A metallic satin-black microphone with a knitted-wire capsule. The handle
 # passes physically between fingers and palm; headset blue lighting matches the robot.
