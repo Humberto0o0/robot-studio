@@ -100,7 +100,8 @@ console.log('PASS V11 matched porcelain fingers and high opposable microphone th
  await page.locator('[data-camera-control="in"]').click();
  await page.waitForTimeout(120);
  current=await readCamera();
- assert(current.distance<initial.distance-1,'Zoom-in button did not move camera closer');
+ console.log('CAMERA ZOOM DIAGNOSTIC',JSON.stringify({initial,current,markup:await page.locator('[data-camera-control="in"]').evaluate(el=>({value:el.dataset.cameraControl,html:el.outerHTML}))}));
+ assert(current.distance<initial.distance-1,'Zoom-in button did not move camera closer: '+JSON.stringify({initial,current}));
  await page.locator('[data-camera-control="reset"]').click();
  await page.waitForTimeout(100);
  current=await readCamera();
