@@ -9,7 +9,7 @@ const relevant=(gltf.nodes||[]).map(x=>x.name).filter(x=>/eye|mouth|led|helmet|v
 console.log('GLB face-node diagnostics:',JSON.stringify(relevant));
 console.log('GLB bytes',data.length,'nodes',(gltf.nodes||[]).length);
 const modelNames=(gltf.nodes||[]).map(x=>x.name||'');
-const suitChecks=['Hand-tailored satin lapel L','Hand-tailored satin lapel R','Tailored jacket front L','Tailored jacket front R','Orange necktie diamond knot','Tailored sleeve shoulder cap L','Tailored sleeve shoulder cap R'];
+const suitChecks=['Hand-tailored satin lapel L','Hand-tailored satin lapel R','Tailored jacket front L','Tailored jacket front R','Orange necktie diamond knot','Shoulder rounded cobalt fabric cap L','Shoulder rounded cobalt fabric cap R'];
 for(const name of suitChecks) assert(modelNames.includes(name),'New Blender suit object absent: '+name);
 assert(!modelNames.some(n=>/Cute eyebrow|Glass upper (left|right) reflection/.test(n)),'Duplicate eyebrow-like geometry still present');
 assert((gltf.materials||[]).some(m=>/Royal blue woven suit fabric/.test(m.name||'')),'Woven suit fabric material missing');
