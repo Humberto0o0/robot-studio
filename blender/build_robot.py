@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.1, matched ceramic hands and correctly raised microphone thumb.
+"""Robot Studio - procedural, editable Blender robot v1.2, rear-hidden thumb and proportional microphone fingers.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -653,72 +653,82 @@ for side,sign in [("L",-1),("R",1)]:
         orb("Thumb R dark contact pad",t2,(.041,.041,.040),
             knuckle_dark,thumb,24,16)
     else:
-        # V11 matched hands. Reuse the SAME white ceramic palm, two smooth
-        # rounded phalanges per finger, small recessed graphite joints and
-        # rounded ceramic contact pads used by the preferred presenting hand.
-        # This hand is rotated into a grip: four fingers CURL ACROSS the mic,
-        # while the ONE opposing thumb comes DOWN FROM ABOVE its handle.
+        # V12: anatomically readable microphone grip. Four white ceramic
+        # fingers curl over the FRONT of the shaft; ONE opposing thumb rests
+        # entirely BEHIND the shaft (positive Y) and is mostly occluded from
+        # a frontal camera. The right-side presenting hand is unchanged.
         #
-        # Deliberately avoid the old separate knuckle rails and black fingertip
-        # spheres, which looked like additional/duplicated fingers.
-        palm=(-.617,-.816,1.721)
+        # Front is negative Y. Microphone shaft centre is roughly
+        # x=-.46, y=-.94; its radius is .064. Hidden thumb geometry must
+        # remain at y >= -.82 so it cannot project through the front shell.
+        palm=(-.601,-.806,1.709)
         orb("Hand_almoured_ceramic_palm_"+side,palm,
-            (.157,.107,.180),hand_shell,wrist,48,32)
+            (.155,.104,.174),hand_shell,wrist,48,32)
         orb("Palm graphite perimeter "+side,
-            (palm[0]-.013,palm[1]+.043,palm[2]),
-            (.139,.057,.157),knuckle_dark,wrist,40,26)
+            (palm[0]-.020,palm[1]+.047,palm[2]),
+            (.132,.056,.152),knuckle_dark,wrist,40,26)
         orb("Hand pearlescent knuckle plate "+side,
-            (palm[0],palm[1]-.079,palm[2]+.019),
-            (.133,.028,.141),hand_shell,wrist,42,24)
+            (palm[0],palm[1]-.082,palm[2]+.017),
+            (.129,.024,.132),hand_shell,wrist,42,24)
 
-        # Fingers are arranged vertically along the microphone, NOT stacked
-        # sets of joint balls on the same side of the handle. Their individual
-        # ceramic shells visually match the presentation hand.
-        for j in range(4):
-            z=1.813-j*.069
-            finger_base=(-.560,-.846,z)
+        # Index, middle, ring and pinky have deliberately different lengths.
+        # Index is slightly shorter than middle, ring slightly shorter, and
+        # pinky clearly shortest. No fake extra finger or multiple black
+        # knuckle beads along the front of the shaft.
+        fingers=[
+            # z height, x at root, x at bend, x at tip, finger radius
+            (1.813,-.576,-.530,-.461,.041),  # index
+            (1.752,-.568,-.520,-.439,.043),  # middle (longest)
+            (1.686,-.565,-.524,-.454,.040),  # ring
+            (1.624,-.563,-.534,-.477,.034),  # pinky (shortest)
+        ]
+        for j,(z,root_x,bend_x,tip_x,radius) in enumerate(fingers):
+            finger_base=(root_x,-.849,z)
             kn=pivot("Finger_L_"+str(j)+"_Knuckle",finger_base,wrist)
             knuckle_pivots["L_"+str(j)]=kn
-            orb("Finger L "+str(j)+" recessed graphite root",finger_base,
-                (.038,.039,.040),knuckle_dark,wrist,26,16)
-            bend=(-.524,-.975,z-.003)
-            final=(-.447,-1.010,z-.036)
+            # The dark root is almost entirely inside the ceramic palm.
+            orb("Finger L "+str(j)+" recessed graphite root",
+                finger_base,(.026,.028,.029),knuckle_dark,wrist,24,14)
+            bend=(bend_x,-.977,z-.003)
+            final=(tip_x,-1.011,z-.029)
             rot_link("Finger L "+str(j)+" curled white segment",
-                     finger_base,bend,.043,hand_shell,kn)
-            # A small dark hinge connects the TWO ceramic pieces; no
-            # exposed black ball or cyan bead in front of the mic shaft.
+                     finger_base,bend,radius,hand_shell,kn)
             orb("Finger L "+str(j)+" soft hinge",bend,
-                (.032,.032,.033),knuckle_dark,kn,24,16)
+                (.024,.023,.024),knuckle_dark,kn,20,14)
             tip=pivot("Finger_L_"+str(j)+"_Tip",bend,kn)
             rot_link("Finger L "+str(j)+" curved porcelain fingertip",
-                     bend,final,.037,hand_shell,tip)
+                     bend,final,radius*.86,hand_shell,tip)
             orb("Finger L "+str(j)+" rounded ceramic pad",final,
-                (.037,.036,.035),hand_shell,tip,24,18)
+                (radius*.85,radius*.79,radius*.85),
+                hand_shell,tip,24,16)
             orb("Finger L "+str(j)+" tiny contact pad",
-                (final[0],final[1]-.024,final[2]),
-                (.023,.009,.020),knuckle_dark,tip,20,12)
+                (final[0],final[1]-.025,final[2]),
+                (radius*.48,.008,radius*.44),knuckle_dark,tip,20,12)
 
-        # Thumb anchored HIGH next to index knuckle, bending over the top
-        # of the handle. The previous thumb sprouted below the little
-        # finger, appearing upside-down and like a fifth low finger.
-        t0=(-.635,-.865,1.905)
-        t1=(-.571,-.973,1.929)
-        t2=(-.474,-1.004,1.891)
+        # This thumb travels from the palm to the REAR of the microphone:
+        # its entire ceramic body is behind the grip's back surface.
+        # It still opposes the other fingers, but no longer appears as
+        # a sixth digit sticking out above or beside the grille.
+        t0=(-.603,-.786,1.818)
+        t1=(-.530,-.793,1.839)
+        t2=(-.465,-.815,1.819)
+        if not (min(t0[1],t1[1],t2[1]) > -.855):
+            raise RuntimeError("Microphone thumb must remain behind handle")
         thumb=pivot("Thumb_L_Root",t0,wrist)
         thumbs[side]=thumb
         orb("Thumb L high recessed hinge",t0,
-            (.049,.046,.046),knuckle_dark,wrist,24,16)
+            (.033,.034,.034),knuckle_dark,wrist,24,16)
         rot_link("Thumb L ceramic gripping segment",
-                 t0,t1,.055,hand_shell,thumb)
+                 t0,t1,.044,hand_shell,thumb)
         orb("Thumb L upper knuckle",t1,
-            (.039,.039,.038),knuckle_dark,thumb,24,16)
+            (.029,.030,.029),knuckle_dark,thumb,22,14)
         rot_link("Thumb L gripping end",
-                 t1,t2,.044,hand_shell,thumb)
+                 t1,t2,.037,hand_shell,thumb)
         orb("Thumb L upward ceramic tip",t2,
-            (.038,.035,.035),hand_shell,thumb,24,18)
+            (.031,.031,.031),hand_shell,thumb,24,16)
         orb("Thumb L contact pad",
-            (t2[0],t2[1]-.024,t2[2]),
-            (.026,.010,.023),knuckle_dark,thumb,20,12)
+            (t2[0],t2[1]-.017,t2[2]),
+            (.020,.008,.020),knuckle_dark,thumb,18,12)
 
 # A metallic satin-black microphone with a knitted-wire capsule. The handle
 # passes physically between fingers and palm; headset blue lighting matches the robot.
