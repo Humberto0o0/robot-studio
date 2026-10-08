@@ -190,6 +190,17 @@ scene.frame_end=120
 scene.render.fps=30
 scene.render.engine='BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items.keys() else 'BLENDER_EEVEE'
 
+# Share one named NLA track across all animated pieces, so glTF exports a
+# single synchronized gesture clip instead of one animation per body part.
+for obj in [root, head, shoulders["L"], shoulders["R"], elbows["R"], mouth]:
+    anim = obj.animation_data
+    if anim and anim.action:
+        action = anim.action
+        track = anim.nla_tracks.new()
+        track.name = "Robot_Performance"
+        track.strips.new("Robot_Performance", 1, action)
+        anim.action = None
+
 # Save editable source and web-ready GLB.
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/"robot-prototype.blend"))
 bpy.ops.export_scene.gltf(filepath=str(OUT/"robot-prototype.glb"),export_format="GLB",export_animations=True)
