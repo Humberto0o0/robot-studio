@@ -676,15 +676,15 @@ for side,sign in [("L",-1),("R",1)]:
         # ceramic shells visually match the presentation hand.
         for j in range(4):
             z=1.813-j*.069
-            root=(-.560,-.846,z)
-            kn=pivot("Finger_L_"+str(j)+"_Knuckle",root,wrist)
+            finger_base=(-.560,-.846,z)
+            kn=pivot("Finger_L_"+str(j)+"_Knuckle",finger_base,wrist)
             knuckle_pivots["L_"+str(j)]=kn
-            orb("Finger L "+str(j)+" recessed graphite root",root,
+            orb("Finger L "+str(j)+" recessed graphite root",finger_base,
                 (.038,.039,.040),knuckle_dark,wrist,26,16)
             bend=(-.524,-.975,z-.003)
             final=(-.447,-1.010,z-.036)
             rot_link("Finger L "+str(j)+" curled white segment",
-                     root,bend,.043,hand_shell,kn)
+                     finger_base,bend,.043,hand_shell,kn)
             # A small dark hinge connects the TWO ceramic pieces; no
             # exposed black ball or cyan bead in front of the mic shaft.
             orb("Finger L "+str(j)+" soft hinge",bend,
