@@ -27,6 +27,14 @@ const handChecks=[
 for(const name of handChecks) assert(modelNames.includes(name),'Missing articulated limb node: '+name);
 assert(!modelNames.some(n=>/Finger [LR] [0-9]$/.test(n)),'Old straight rod fingers still visible');
 console.log('PASS V4 articulated shoulders, elbows, wrists, 8 finger knuckles and thumbs');
+for(const side of ['L','R']){
+ for(const suffix of ['Continuous cobalt wrist extension','Cuff seamless cobalt sleeve end','Cuff slim porcelain transition','Cuff thin cobalt trim','Wrist hidden mechanical socket']){
+  const name=suffix+' '+side;
+  assert(modelNames.includes(name),'Missing V7 seamless sleeve geometry: '+name);
+ }
+ assert(!modelNames.includes('Wrist under-cuff mechanism '+side),'Exposed old wrist joint remains on '+side);
+}
+console.log('PASS V7 hidden mechanical wrist joints and continuous cobalt sleeves');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
