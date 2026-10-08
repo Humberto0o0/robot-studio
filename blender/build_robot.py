@@ -140,35 +140,36 @@ fabric_shadow=mat("Blue jacket edge shadow",(.014,.078,.43),.13,.53)
 metal_button=mat("Antique graphite metal button",(.12,.15,.21),.82,.19)
 button_glint=mat("Button champagne rim",(.54,.35,.14),.65,.19)
 tie_facet=mat("Orange silk dark facet",(.65,.10,.015),.10,.32)
-tie_highlight=mat("Orange silk highlight",(.99,.42,.035),.15,.24)
+tie_highlight=mat("Orange silk highlight",(.87,.24,.017),.11,.34)
 
-def weave_image(name, normal=False, size=128):
+def weave_image(name, normal=False, size=256):
     # Generated native Blender image, embedded into GLB and packed into .blend.
     # Small seamless basket weave instead of a GPU-expensive shader.
     img=bpy.data.images.new(name,width=size,height=size,alpha=True)
     pixels=[]
     for iy in range(size):
         for ix in range(size):
-            u=(ix%12)/12.0;v=(iy%12)/12.0
+            u=(ix%4)/4.0;v=(iy%4)/4.0
             warp=.5+.5*math.cos(2*math.pi*u)
             weft=.5+.5*math.cos(2*math.pi*v)
             vstripe=math.sin(2*math.pi*ix/6)
             hstripe=math.sin(2*math.pi*iy/6)
-            checker=(1 if (ix//6+iy//6)%2==0 else -1)
+            checker=(1 if (ix//2+iy//2)%2==0 else -1)
             if normal:
                 # Tangent-space micro-normal for visible light-catching weave.
-                pixels.extend((.5+.14*vstripe,.5+.14*hstripe,.96,1))
+                pixels.extend((.5+.035*vstripe,.5+.035*hstripe,.998,1))
             else:
-                gain=.91+.075*warp+.045*weft+.035*checker
-                pixels.extend((.018*gain,.125*gain,.79*gain,1))
+                gain=.960+.021*warp+.014*weft+.008*checker
+                pixels.extend((.006*gain,.175*gain,.675*gain,1))
     img.pixels[:]=pixels
     img.pack()
     return img
 
 fabric_color=weave_image("Cobalt basket weave albedo")
 fabric_normal=weave_image("Cobalt basket weave tangent normal",True)
-woven=mat("Royal blue woven suit fabric",(.014,.14,.80),.08,.58)
+woven=mat("Royal blue woven suit fabric",(.008,.19,.71),.06,.69)
 fabric_bsdf=woven.node_tree.nodes.get("Principled BSDF")
+if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.08
 tex=woven.node_tree.nodes.new("ShaderNodeTexImage")
 tex.name="PBR Fabric Base Color"
 tex.image=fabric_color
@@ -179,7 +180,7 @@ ntex.name="PBR Micro Weave Normal"
 ntex.image=fabric_normal
 ntex.image.colorspace_settings.name="Non-Color"
 nm=woven.node_tree.nodes.new("ShaderNodeNormalMap")
-nm.inputs["Strength"].default_value=.16
+nm.inputs["Strength"].default_value=.075
 woven.node_tree.links.new(ntex.outputs["Color"],nm.inputs["Color"])
 woven.node_tree.links.new(nm.outputs["Normal"],fabric_bsdf.inputs["Normal"])
 
@@ -280,9 +281,9 @@ front_patch("Suit breast pocket welt",
  [(.401,1.881),(.632,1.882),(.629,1.838),(.407,1.835)],
  fabric_shadow,.127)
 front_patch("Orange silk pocket fold 1",
- [(.431,1.868),(.464,1.965),(.518,1.874)],orange,.157)
+ [(.431,1.868),(.464,1.925),(.518,1.874)],orange,.157)
 front_patch("Orange silk pocket fold 2",
- [(.498,1.868),(.568,1.948),(.610,1.864)],tie_highlight,.163)
+ [(.498,1.868),(.568,1.915),(.610,1.864)],tie_highlight,.163)
 stitched_line("Chest welt seam",[(.398,1.838),(.63,1.837)],suit_lining,.010)
 
 # One engraved metal button in a recessed metal trim, near the crossing panels.
