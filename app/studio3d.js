@@ -427,8 +427,21 @@ for(let event of ['pointerup','pointercancel','change'])$('seek').addEventListen
 const stage=canvas;
 const touches=new Map();
 let lastGesture=null;
-const zoomCamera=amount=>{state.orbitDistance=clamp(state.orbitDistance*amount,3.15,14);};
-const resetCamera=()=>{state.angle=0;state.pitch=.042;state.orbitDistance=8.35;};
+// Update the control readout synchronously. iPhone canvas rendering and
+// headless WebGL may draw more slowly than touch / button events arrive.
+const writeCameraState=()=>{
+ stage.dataset.cameraYaw=state.angle.toFixed(3);
+ stage.dataset.cameraPitch=state.pitch.toFixed(3);
+ stage.dataset.cameraDistance=state.orbitDistance.toFixed(3);
+};
+const zoomCamera=amount=>{
+ state.orbitDistance=clamp(state.orbitDistance*amount,3.15,14);
+ writeCameraState();
+};
+const resetCamera=()=>{
+ state.angle=0;state.pitch=.042;state.orbitDistance=8.35;writeCameraState();
+};
+writeCameraState();
 const gestureSnapshot=()=>{
  const pts=[...touches.values()];
  if(pts.length===1)return {n:1,x:pts[0].x,y:pts[0].y};
@@ -463,6 +476,7 @@ stage.addEventListener('pointermove',e=>{
    state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.003,-1.12,1.12);
   }
  }
+ writeCameraState();
  lastGesture=g;
 });
 const endGesture=e=>{
@@ -486,6 +500,7 @@ document.querySelectorAll('[data-camera-control]').forEach(btn=>
    case 'out': zoomCamera(1.27);break;
    case 'reset': resetCamera();break;
   }
+  writeCameraState();
  }));
 $('resetCamera').addEventListener('click',resetCamera);
 $('previewPose').addEventListener('click',()=>{const poses=['wave','present','point','neutral'];state.pose=poses[state.poseIndex++%poses.length];state.poseUntil=performance.now()+2500;});
