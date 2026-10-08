@@ -83,6 +83,58 @@ console.log('PASS V11 matched porcelain fingers and high opposable microphone th
  await page.waitForTimeout(900);
  await page.screenshot({path:'test-results/v2-helmet-iphone.png',fullPage:false});
  console.log('PASS real Blender V2 expressive visor and helmet detected');
+ // Mobile 3D camera: verify actual orbit/zoom state, not decorative buttons.
+ const stage=page.locator('#stage');
+ assert.strictEqual(await stage.evaluate(el=>getComputedStyle(el).touchAction),'none',
+  'Safari may intercept preview touch gestures');
+ const readCamera=async()=>stage.evaluate(el=>({
+  yaw:Number(el.dataset.cameraYaw),pitch:Number(el.dataset.cameraPitch),
+  distance:Number(el.dataset.cameraDistance)
+ }));
+ const initial=await readCamera();
+ assert(Math.abs(initial.distance-8.35)<.1,'Initial camera distance is incorrect');
+ await page.locator('[data-camera-control="right"]').click();
+ await page.waitForTimeout(120);
+ let current=await readCamera();
+ assert(current.yaw>initial.yaw+.3,'Right turn button does not orbit the robot');
+ await page.locator('[data-camera-control="in"]').click();
+ await page.waitForTimeout(120);
+ current=await readCamera();
+ assert(current.distance<initial.distance-1,'Zoom-in button did not move camera closer');
+ await page.locator('[data-camera-control="reset"]').click();
+ await page.waitForTimeout(100);
+ current=await readCamera();
+ assert(Math.abs(current.yaw)<.02 && Math.abs(current.distance-8.35)<.1,
+  'Camera reset did not restore original zoom/orbit');
+ const gesture=await stage.evaluate(el=>{
+  const touch=(event,id,x,y)=>el.dispatchEvent(new PointerEvent(event,{
+   bubbles:true,cancelable:true,pointerId:id,pointerType:'touch',
+   isPrimary:id===1,clientX:x,clientY:y,button:0,buttons:1}));
+  touch('pointerdown',1,90,220);
+  touch('pointermove',1,180,275); // drag horizontally and vertically
+  touch('pointerup',1,180,275);
+  return true;
+ });
+ await page.waitForTimeout(110);
+ current=await readCamera();
+ assert(current.yaw>.9 && current.pitch>.4,'Touch drag did not turn and tilt the camera');
+ await page.locator('[data-camera-control="reset"]').click();
+ await stage.evaluate(el=>{
+  const touch=(event,id,x,y)=>el.dispatchEvent(new PointerEvent(event,{
+   bubbles:true,cancelable:true,pointerId:id,pointerType:'touch',
+   isPrimary:id===1,clientX:x,clientY:y,button:0,buttons:1}));
+  touch('pointerdown',1,120,300);
+  touch('pointerdown',2,220,300);
+  touch('pointermove',2,290,300); // fingers separate = pinch zoom in
+  touch('pointerup',2,290,300);
+  touch('pointerup',1,120,300);
+ });
+ await page.waitForTimeout(110);
+ current=await readCamera();
+ assert(current.distance<6,'Pinch gesture did not zoom in: '+current.distance);
+ await page.locator('[data-camera-control="reset"]').click();
+ await page.waitForTimeout(90);
+ console.log('PASS iPhone drag rotate, vertical tilt, pinch zoom, zoom buttons and reset');
  await page.locator('#demo').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent==='Voice analyzed',{timeout:20000});
  console.log('PASS demo audio decoded');
