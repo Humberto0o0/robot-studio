@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v0.6, natural microphone hand grip.
+"""Robot Studio - procedural, editable Blender robot v0.7, continuous tailored wrists.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -469,18 +469,32 @@ def sleeve_mesh(name,p,q,r0,r1,parent,material):
             uv.data[li].uv=(k/num*1.5,layer/(len(profiles)-1)*1.65)
     return obj
 
-def wrist_detail(side,center,elbow):
+def wrist_detail(side,center,hand_position,elbow):
+    """A fitted, continuous suit sleeve right up to each moving ceramic palm.
+
+    The visible wrist is cobalt fabric with just a narrow white cuff seam.
+    Graphite mechanics stay INSIDE the overlapping sleeves; no dark donut,
+    dangling blue washer or exposed black ball before the hand.
+    """
     c=Vector(center)
-    orb("Wrist under-cuff mechanism "+side,c,(.173,.172,.164),
-        knuckle_dark,elbow,36,22)
-    orb("Cuff outer porcelain shell "+side,c+Vector((0,-.026,.005)),
-        (.185,.161,.151),cuff_white,elbow,40,25)
-    orb("Cuff blue encircling line "+side,c+Vector((0,-.151,.006)),
-        (.175,.032,.144),cuff_blue,elbow,40,25)
-    orb("Cuff subtle inner cyan trim "+side,c+Vector((0,-.180,.006)),
-        (.144,.015,.114),finger_cyan,elbow,32,22)
-    orb("Cuff inside dark seal "+side,c+Vector((0,-.19,.004)),
-        (.130,.016,.109),cuff_dark,elbow,32,22)
+    h=Vector(hand_position)
+    travel=h-c
+    # Blend the sleeve through the former visible gap, even on raised poses.
+    bridge_end=c+travel*.82
+    sleeve_mesh("Continuous cobalt wrist extension "+side,
+                tuple(c),tuple(bridge_end),.160,.133,elbow,woven)
+    orb("Cuff seamless cobalt sleeve end "+side,
+        tuple(c+travel*.70),(.145,.135,.138),woven,elbow,40,26)
+    # Fine porcelain shirt cuff lip: mostly hidden by overlapping outer sleeve
+    # and by the hand, visible only as a clean narrow line.
+    orb("Cuff slim porcelain transition "+side,
+        tuple(c+travel*.87),(.119,.110,.110),cuff_white,elbow,36,22)
+    orb("Cuff thin cobalt trim "+side,
+        tuple(c+travel*.77),(.128,.114,.115),cuff_blue,elbow,36,22)
+    # This small socket is wholly behind the white wrist; it preserves the
+    # believable robotic joint without displaying a large black gap.
+    orb("Wrist hidden mechanical socket "+side,
+        tuple(c+travel*.90),(.071,.076,.074),cuff_dark,elbow,28,18)
 
 shoulders={}
 elbows={}
@@ -508,7 +522,7 @@ for side,sign in [("L",-1),("R",1)]:
     # Right arm stays inside the 9:16 frame; left bends to hold the microphone.
     c=(sign*1.285,-.404,1.572) if side=="R" else (-.654,-.682,1.637)
     sleeve_mesh("Tailored forearm "+side,b,c,.189,.159,elbow,woven)
-    orb("Forearm sleeve hem "+side,c,(.172,.168,.156),woven,elbow,36,22)
+    orb("Forearm fitted sleeve edge "+side,c,(.170,.161,.158),woven,elbow,36,22)
     # Physical stitching on cloth at the elbow, not a disconnected floating arc.
     for k in (-1,1):
         seam_z=b[2]+.082*k
@@ -516,7 +530,8 @@ for side,sign in [("L",-1),("R",1)]:
              (b[0]-.072,b[1]-.08,seam_z),
              (b[0]+.074,b[1]-.080,seam_z),
              .006,suit_highlight,shoulder,10)
-    wrist_detail(side,c,elbow)
+    hand_anchor=(1.425,-.552,1.691) if side=="R" else (-.613,-.819,1.696)
+    wrist_detail(side,c,hand_anchor,elbow)
     wrist=pivot("Wrist_"+side,c,elbow)
     wrists[side]=wrist
 
