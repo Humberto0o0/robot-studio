@@ -14,6 +14,19 @@ for(const name of suitChecks) assert(modelNames.includes(name),'New Blender suit
 assert(!modelNames.some(n=>/Cute eyebrow|Glass upper (left|right) reflection/.test(n)),'Duplicate eyebrow-like geometry still present');
 assert((gltf.materials||[]).some(m=>/Royal blue woven suit fabric/.test(m.name||'')),'Woven suit fabric material missing');
 console.log('PASS NEW SUIT geometry and single LED eye expression');
+const handChecks=[
+ 'Shoulder_L','Shoulder_R','Elbow_L','Elbow_R','Wrist_L','Wrist_R',
+ 'Tailored upper sleeve L','Tailored upper sleeve R',
+ 'Tailored forearm L','Tailored forearm R',
+ 'Hand_almoured_ceramic_palm_L','Hand_almoured_ceramic_palm_R',
+ 'Thumb_R_Root','Thumb_L_Root',
+ 'Finger_R_0_Knuckle','Finger_R_1_Knuckle','Finger_R_2_Knuckle','Finger_R_3_Knuckle',
+ 'Finger_L_0_Knuckle','Finger_L_1_Knuckle','Finger_L_2_Knuckle','Finger_L_3_Knuckle',
+ 'Microphone steel capsule grille'
+];
+for(const name of handChecks) assert(modelNames.includes(name),'Missing articulated limb node: '+name);
+assert(!modelNames.some(n=>/Finger [LR] [0-9]$/.test(n)),'Old straight rod fingers still visible');
+console.log('PASS V4 articulated shoulders, elbows, wrists, 8 finger knuckles and thumbs');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
