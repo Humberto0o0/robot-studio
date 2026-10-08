@@ -111,8 +111,8 @@ navy = mat("Black glass / clearcoat visor",(.004,.009,.024),.24,.07)
 shell = mat("Ceramic pearl helmet",(.94,.973,1.0),.18,.13)
 trim = mat("Deep navy visor gasket",(.009,.025,.059),.43,.20)
 edge = mat("Iridescent cobalt anodized trim",(.025,.20,.95),.56,.14)
-led_bg = mat("Blue LED diffuser",(.015,.13,.70),.10,.21,1.4)
-led_px = mat("Cyan LED pixel matrix",(.12,.95,1.0),.05,.15,4.0)
+led_bg = mat("Blue LED diffuser",(.012,.17,.64),.08,.23,.85)
+led_px = mat("Cyan LED pixel matrix",(.006,.50,.93),.02,.20,2.35)
 mouth_dark = mat("Warm shaded smile cavity",(.095,.004,.012),.10,.27)
 tongue = mat("Coral pink mouth tongue",(.99,.13,.14),.06,.29)
 mouth_border = mat("Inner mouth rim",(.025,.012,.026),.12,.23)
@@ -216,16 +216,52 @@ for sign,label in [(-1,"L"),(1,"R")]:
     # The two eyebrows are slim bright arcs, separately positioned above the eyes.
     curved_strip("Cute eyebrow "+label,cx,2.975,.154,.068,.014,led_px,head,.048,24)
 
-# A real 3D SMILE BELOW the visor, like the reference. The complete mouth is
-# parented to one pivot; scaling Z opens it without any floating graphics.
-mouth=pivot("Mouth_Display",(0,-.80,2.19),head)
-orb("Mouth elegant dark surround",(0,-.791,2.193),(.262,.034,.143),mouth_border,mouth,48,30)
-orb("Mouth open burgundy recess",(0,-.819,2.191),(.245,.038,.126),mouth_dark,mouth,48,30)
-orb("Mouth warm coral tongue",(0,-.856,2.152),(.174,.027,.063),tongue,mouth,40,24)
-orb("Mouth upper soft lip shine",(0,-.848,2.279),(.119,.014,.009),mouth_border,mouth,30,14)
-# Smile-side glints give a friendly identity even at tiny preview scale.
-orb("Smile corner left",(-.221,-.823,2.221),(.023,.015,.021),mouth_border,mouth,20,12)
-orb("Smile corner right",(.221,-.823,2.221),(.023,.015,.021),mouth_border,mouth,20,12)
+# Sculpted 3D grin flush with the helmet's lower white ceramic shell.
+# Curved face polygons follow its elliptical surface (not flat sphere overlays).
+mouth=pivot("Mouth_Display",(0,-.72,2.20),head)
+def helmet_front(x,z,offset=.0):
+    ratio=(x/1.052)**2+((z-2.65)/.82)**2
+    return -.824*math.sqrt(max(.002,1-ratio))-offset
+
+def smile_band(name,width,depth_drop,offset,material,segments=42):
+    vertices,faces=[],[]
+    for i in range(segments+1):
+        u=-1.0+i*2.0/segments
+        x=width*u
+        # Gentle top lip; corners join a curved lower edge like the reference.
+        z_top=2.248+.020*u*u
+        z_bottom=2.262-depth_drop*max(0,1-u*u)**.63
+        for z in (z_top,z_bottom):
+            vertices.append((x,helmet_front(x,z,offset),z))
+        if i>0:
+            a=2*(i-1); b=2*i
+            faces.extend([(a,b,a+1),(b,b+1,a+1)])
+    return poly_mesh(name,vertices,faces,material,mouth)
+
+smile_band("Mouth rim precision outline",.311,.195,.041,mouth_border)
+smile_band("Mouth open burgundy recess",.289,.181,.053,mouth_dark)
+# The pink tongue is a subtly convex U-shaped insert near the lower lip.
+def sculpted_tongue():
+    verts,faces=[],[]
+    count=28
+    for i in range(count+1):
+        u=-1+i*2/count
+        x=.203*u
+        u2=max(0,1-u*u)
+        ztop=2.142+.027*u2
+        zbot=2.092+.022*(1-u2)
+        for z in (ztop,zbot):
+            verts.append((x,helmet_front(x,z,.069),z))
+        if i:
+            a=2*(i-1);b=2*i
+            faces.extend([(a,b,a+1),(b,b+1,a+1)])
+    poly_mesh("Mouth warm coral tongue",verts,faces,tongue,mouth)
+sculpted_tongue()
+# Wide smiling corner details, not independent oval buttons.
+for sign,label in [(-1,"L"),(1,"R")]:
+    x=sign*.291
+    orb("Smile corner "+label,(x,helmet_front(x,2.264,.061),2.264),
+        (.021,.012,.017),mouth_border,mouth,20,12)
 
 # Shoulder and elbow pivots remain physically attached at any rotation.
 shoulders={}
