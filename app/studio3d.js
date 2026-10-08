@@ -15,7 +15,7 @@ const rnd=(v)=>Math.sin(v*25.367+17)*43758.5453%1;
 const fmt=(s)=>{s=Number.isFinite(s)?Math.max(0,s):0;return String(Math.floor(s/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0")};
 const state={ready:false,file:null,objectURL:null,duration:0,buffer:null,env:[],speech:[],pauses:[],emphasis:[],cues:[],
  words:[],story:null,storyURL:null,script:"",headline:"",playing:false,demo:false,analyzing:false,
- t:0,lastT:0,uiDrag:false,pose:"neutral",poseUntil:0,poseIndex:0,angle:0,dragX:null,
+ t:0,lastT:0,uiDrag:false,pose:"neutral",poseUntil:0,poseIndex:0,angle:0,pitch:0.042,orbitDistance:8.35,dragX:null,
  record:null,recordStarted:false,mediaSource:null,audioContext:null,destination:null,
  mouthValue:0,blinkValue:0,lastBlink:0,videoURL:null,gestureT:0};
 const settings={mouth:true,gestures:true,captions:true,blink:true,float:true,camera:true,energy:.6};
@@ -220,8 +220,11 @@ function animate3D(t,dt,loud){
  for(let side of ['L','R']){
   const eye=nodes['Eye_'+side];if(eye){const ds=defaults[eye.uuid].scale;eye.scale.z=ds.z*state.blinkValue;}
  }
- const targetCamera=state.angle+(settings.camera?.015*Math.sin(ph*.34):0);
- camera.position.set(Math.sin(targetCamera)*8.35,2.28+Math.sin(ph*.14)*.03,Math.cos(targetCamera)*8.35);
+ const yaw=state.angle+(settings.camera?.015*Math.sin(ph*.34):0);
+ const pitch=state.pitch,dist=state.orbitDistance;
+ camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist,
+    1.93+Math.sin(pitch)*dist+Math.sin(ph*.14)*.03,
+    Math.cos(yaw)*Math.cos(pitch)*dist);
  camera.lookAt(0,1.93,0);
  $('poseBadge').textContent=intro;
 }
@@ -413,12 +416,73 @@ audio.addEventListener('play',()=>{state.playing=true;updateControls();});
 $('seek').addEventListener('pointerdown',()=>{state.uiDrag=true;});
 $('seek').addEventListener('input',e=>{if(state.duration){audio.currentTime=e.target.value/1000*state.duration;$('clock').textContent=fmt(audio.currentTime)+' / '+fmt(state.duration);}});
 for(let event of ['pointerup','pointercancel','change'])$('seek').addEventListener(event,()=>{state.uiDrag=false;});
+// iPhone-first orbit controls. Events are on the preview ONLY: outside it,
+// page scrolling and buttons keep working as normal. 1 finger = full 360
+// rotation + tilt, 2 fingers = pinch zoom. Also allow wheel / explicit buttons.
 const stage=canvas;
-stage.addEventListener('pointerdown',e=>{state.dragX=e.clientX;stage.setPointerCapture(e.pointerId);});
-stage.addEventListener('pointermove',e=>{if(state.dragX==null)return;let diff=e.clientX-state.dragX;state.dragX=e.clientX;state.angle=clamp(state.angle+diff*.007,-.85,.85);});
-stage.addEventListener('pointerup',()=>{state.dragX=null;});
-stage.addEventListener('pointercancel',()=>{state.dragX=null;});
-$('resetCamera').addEventListener('click',()=>{state.angle=0;});
+const touches=new Map();
+let lastGesture=null;
+const zoomCamera=amount=>{state.orbitDistance=clamp(state.orbitDistance*amount,3.15,14);};
+const resetCamera=()=>{state.angle=0;state.pitch=.042;state.orbitDistance=8.35;};
+const gestureSnapshot=()=>{
+ const pts=[...touches.values()];
+ if(pts.length===1)return {n:1,x:pts[0].x,y:pts[0].y};
+ if(pts.length>=2){
+  const a=pts[0],b=pts[1];
+  return {n:2,x:(a.x+b.x)/2,y:(a.y+b.y)/2,
+          spread:Math.max(10,Math.hypot(a.x-b.x,a.y-b.y))};
+ }
+ return null;
+};
+stage.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='mouse'&&e.button!==0)return;
+ e.preventDefault();
+ touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ try{stage.setPointerCapture(e.pointerId)}catch(_){}
+ lastGesture=gestureSnapshot();
+});
+stage.addEventListener('pointermove',e=>{
+ if(!touches.has(e.pointerId))return;
+ e.preventDefault();
+ touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ const g=gestureSnapshot();
+ if(g&&lastGesture&&g.n===lastGesture.n){
+  if(g.n===1){
+   // Horizontal movement is deliberately unrestricted: full rotations.
+   state.angle+=(g.x-lastGesture.x)*.012;
+   state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.0085,-1.12,1.12);
+  }else{
+   // Pinch out = closer to robot; pinch in = further away.
+   zoomCamera(lastGesture.spread/g.spread);
+   state.angle+=(g.x-lastGesture.x)*.004;
+   state.pitch=clamp(state.pitch+(g.y-lastGesture.y)*.003,-1.12,1.12);
+  }
+ }
+ lastGesture=g;
+});
+const endGesture=e=>{
+ touches.delete(e.pointerId);
+ lastGesture=gestureSnapshot();
+};
+stage.addEventListener('pointerup',endGesture);
+stage.addEventListener('pointercancel',endGesture);
+stage.addEventListener('lostpointercapture',endGesture);
+stage.addEventListener('wheel',e=>{
+ e.preventDefault();
+ zoomCamera(Math.exp(clamp(e.deltaY,-180,180)*.002));
+},{passive:false});
+stage.addEventListener('dblclick',e=>{e.preventDefault();resetCamera();});
+document.querySelectorAll('[data-camera-control]').forEach(btn=>
+ btn.addEventListener('click',()=>{
+  switch(btn.dataset.cameraControl){
+   case 'left': state.angle-=.34;break;
+   case 'right': state.angle+=.34;break;
+   case 'in': zoomCamera(.79);break;
+   case 'out': zoomCamera(1.27);break;
+   case 'reset': resetCamera();break;
+  }
+ }));
+$('resetCamera').addEventListener('click',resetCamera);
 $('previewPose').addEventListener('click',()=>{const poses=['wave','present','point','neutral'];state.pose=poses[state.poseIndex++%poses.length];state.poseUntil=performance.now()+2500;});
 document.querySelectorAll('[data-pose]').forEach(b=>b.addEventListener('click',()=>{state.pose=b.dataset.pose;state.poseUntil=performance.now()+3200;if(state.duration){audio.pause();state.playing=false;updateControls();}}));
 for(let name of ['mouth','gestures','captions','blink','float','camera'])$(name).addEventListener('change',e=>settings[name]=e.target.checked);
