@@ -6,6 +6,7 @@ on:
     paths:
       - "studio.html"
       - "app/studio3d.js"
+      - "app/performance.mjs"
       - ".github/workflows/test-studio3d.yml"
 
 permissions:
@@ -17,7 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check JavaScript module syntax
-        run: node --check app/studio3d.js
+        run: |
+          node --check app/studio3d.js
+          node --check app/performance.mjs
+          node tests/performance.test.mjs
       - name: Check page wiring and safety invariants
         run: |
           python3 - <<'PY'
@@ -27,7 +31,7 @@ jobs:
           checks={
             "3D viewer": "GLTFLoader" in js,
             "audio decoding": "decodeAudioData" in js,
-            "mouth animation": "Mouth_Display" in js,
+            "speech morph animation": "morphTargetInfluences" in js and "shapeAt" in js,
             "shoulder pivot": "Shoulder_R" in js,
             "elbow pivot": "Elbow_R" in js,
             "caption overlay": "drawCaptions" in js,
