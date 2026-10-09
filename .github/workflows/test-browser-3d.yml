@@ -2,13 +2,8 @@ name: Mobile 3D Browser Smoke Test
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "studio.html"
-      - "app/studio3d.js"
-      - "models/robot-prototype.glb"
-      - ".github/workflows/test-browser-3d.yml"
-      - "tests/smoke3d.cjs"
+  # Automatic mobile checks run inside build-robot.yml against fresh GLB.
+  # Keep this workflow for manual checks of already committed assets.
 
 permissions:
   contents: read

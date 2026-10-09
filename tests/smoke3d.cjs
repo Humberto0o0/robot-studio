@@ -191,6 +191,9 @@ console.log('PASS V15 three phalanges and two hinge seams per gripping finger');
  await page.locator('[data-camera-control="left"]').click();
  await page.waitForTimeout(400);
  await page.screenshot({path:'test-results/v15-mic-three-quarter-closeup.png',fullPage:false});
+ // Pull back before profile inspection so the grip stays inside 9:16.
+ await page.locator('[data-camera-control="out"]').click();
+ await page.locator('[data-camera-control="out"]').click();
  for(let k=0;k<3;k++) await page.locator('[data-camera-control="left"]').click();
  await page.waitForTimeout(400);
  await page.screenshot({path:'test-results/v15-mic-side-closeup.png',fullPage:false});

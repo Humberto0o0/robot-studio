@@ -5,6 +5,10 @@ on:
   push:
     paths:
       - "blender/**"
+      - "app/studio3d.js"
+      - "index.html"
+      - "studio.html"
+      - "tests/smoke3d.cjs"
       - ".github/workflows/build-robot.yml"
 
 permissions:

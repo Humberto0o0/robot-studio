@@ -569,13 +569,11 @@ def tapered_finger_segment(name,start,end,radius_a,radius_b,material,parent):
     return finish(obj,material,parent)
 
 def matching_ceramic_palm(side,center,parent,show_badge=False,gripping=False):
-    """Use the approved hand shell in two orientations.
+    """Preserve the approved presenting shell; use one slim gripping shell.
 
-    The presenting hand is unchanged. The microphone hand reuses the same
-    .220 x .111 x .184 pearl-ceramic shell but is rotated sideways. Its old
-    oversized graphite perimeter and overlapping knuckle plate were INNER
-    surfaces erroneously displayed outside the glove: never draw them for
-    the gripping pose.
+    The microphone palm has its own metacarpal profile to leave clearance
+    for the opposing thumb and the three-segment fingers around the shaft.
+    No duplicate palm liner or knuckle plate is used on the microphone side.
     """
     h=Vector(center)
     if gripping:
@@ -697,19 +695,19 @@ for side,sign in [("L",-1),("R",1)]:
             cx=-.480+(z-1.442)*(.039/.552)
             cy=-.932+(z-1.442)*(-.012/.552)
             points=[Vector((cx-.174,cy+.065,z)),
-                    Vector((cx-.103,cy-.059,z-.005)),
-                    Vector((cx-.005,cy-.107,z-.011)),
-                    Vector((cx+.067*reach,cy-.059,z-.023))]
+                    Vector((cx-.103,cy-.059,z+.006-j*.004)),
+                    Vector((cx-.005,cy-.107,z-.009-j*.006)),
+                    Vector((cx+.067*reach,cy-.059,z-.026-j*.008))]
             base,bend,dip,final=points
             kn=pivot("Finger_L_"+str(j)+"_Knuckle",base,wrist)
             knuckle_pivots["L_"+str(j)]=kn
             orb("Finger L "+str(j)+" recessed graphite root",base,
-                (radius*.90,)*3,knuckle_dark,kn,24,16)
+                (radius*.70,)*3,knuckle_dark,kn,24,16)
             middle=pivot("Finger_L_"+str(j)+"_Middle",bend,kn)
             tip=pivot("Finger_L_"+str(j)+"_Tip",dip,middle)
             for name,pt,r,owner in [
-                    ("soft hinge",bend,radius*.86,middle),
-                    ("distal graphite hinge",dip,radius*.75,tip)]:
+                    ("soft hinge",bend,radius*.65,middle),
+                    ("distal graphite hinge",dip,radius*.60,tip)]:
                 orb("Finger L "+str(j)+" "+name,pt,(r,)*3,
                     knuckle_dark,owner,24,16)
             for k,(name,owner) in enumerate([
@@ -721,7 +719,7 @@ for side,sign in [("L",-1),("R",1)]:
                 # Recessed graphite bridges these small seam gaps, so there
                 # is articulation without disconnected ceramic pieces.
                 tapered_finger_segment("Finger L "+str(j)+" "+name,
-                    start+direction*.010,end-direction*.010,
+                    start+direction*.004,end-direction*.004,
                     radius*(1-.10*k),radius*(.91-.10*k),hand_shell,owner)
             orb("Finger L "+str(j)+" rounded ceramic pad",final,
                 (radius*.73,)*3,hand_shell,tip,24,16)
