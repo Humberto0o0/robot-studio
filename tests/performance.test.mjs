@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {estimateVisemes,validateTiming,shapeAt,blinkAt} from '../app/performance.mjs';
+const cues=estimateVisemes([{word:'Hello',time:0},{word:'Bob',time:1.5}],[{start:.1,end:.7},{start:1.5,end:2.1}],2.5);
+assert(cues.length>2);
+assert(cues.every(c=>(c.time>=.1&&c.end<=.7)||(c.time>=1.5&&c.end<=2.1)),'Estimated mouth must not speak through pauses');
+assert.equal(shapeAt(cues,1),'REST');assert.equal(shapeAt(cues,2.4),'REST');
+assert.equal(shapeAt([{time:.5,end:1,shape:'M'}],.6),'M');
+assert.throws(()=>validateTiming({schema:'robot-studio-timing/v1',duration:2,visemes:[{time:0,end:1,shape:'A'},{time:.5,end:1.2,shape:'E'}]},2));
+assert.throws(()=>validateTiming({schema:'robot-studio-timing/v1',duration:10,visemes:[]},2));
+const valid=validateTiming({schema:'robot-studio-timing/v1',duration:2,visemes:[{time:.3,end:.5,shape:'M'}]},2);
+assert.equal(valid.source,'imported');assert.equal(valid.visemes[0].shape,'M');
+assert(blinkAt(3.45)>0);assert.equal(blinkAt(0),0);
+console.log('PASS speech silence, ordered timing imports, closed consonants and deterministic blink');

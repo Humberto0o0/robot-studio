@@ -103,8 +103,8 @@ trim = mat("Deep navy visor gasket",(.009,.025,.059),.43,.20)
 edge = mat("Iridescent cobalt anodized trim",(.025,.20,.95),.56,.14)
 led_bg = mat("Blue LED diffuser",(.012,.17,.64),.08,.23,.85)
 led_px = mat("Cyan LED pixel matrix",(.006,.50,.93),.02,.20,2.35)
-mouth_dark = mat("Warm shaded smile cavity",(.095,.004,.012),.10,.27)
-tongue = mat("Coral pink mouth tongue",(.99,.13,.14),.06,.29)
+mouth_dark = mat("Warm shaded smile cavity",(.022,.004,.009),.03,.42)
+tongue = mat("Coral pink mouth tongue",(.53,.075,.095),.02,.38)
 mouth_border = mat("Inner mouth rim",(.025,.012,.026),.12,.23)
 glass_sheen = mat("Blue glass visor reflection",(.075,.28,.68),.29,.09)
 for m in [navy,shell]:
@@ -135,7 +135,7 @@ def poly_mesh(name, xyz, faces, material, parent):
 # authentic glTF textures; no flat reference PNGs or box-shaped lapel primitives.
 shirt=mat("Silky ivory shirt",(.94,.975,1),.025,.30)
 suit_lining=mat("Jacket navy shadow piping",(.008,.025,.10),.11,.45)
-suit_highlight=mat("Cobalt satin lapel facing",(.024,.29,.95),.44,.20)
+suit_highlight=mat("Cobalt satin lapel facing",(.024,.24,.79),.25,.31)
 fabric_shadow=mat("Blue jacket edge shadow",(.014,.078,.43),.13,.53)
 metal_button=mat("Antique graphite metal button",(.12,.15,.21),.82,.19)
 button_glint=mat("Button champagne rim",(.54,.35,.14),.65,.19)
@@ -167,13 +167,13 @@ def weave_image(name, normal=False, size=256):
 
 fabric_color=weave_image("Cobalt basket weave albedo")
 fabric_normal=weave_image("Cobalt basket weave tangent normal",True)
-woven=mat("Royal blue woven suit fabric",(.021,.25,.92),.38,.235)
+woven=mat("Royal blue woven suit fabric",(.021,.25,.92),.20,.34)
 fabric_bsdf=woven.node_tree.nodes.get("Principled BSDF")
 # Polished suit lacquer: visible broad highlights like the ceramic helmet, but
 # with micro-fabric weave instead of mirror-plastic. Metallic uses PBR workflow.
 if "Anisotropic IOR Level" in fabric_bsdf.inputs:
     fabric_bsdf.inputs["Anisotropic IOR Level"].default_value=.17
-if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.68
+if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.35
 if "Coat Roughness" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Roughness"].default_value=.12
 tex=woven.node_tree.nodes.new("ShaderNodeTexImage")
 tex.name="PBR Fabric Base Color"
@@ -413,52 +413,82 @@ for sign,label in [(-1,"L"),(1,"R")]:
     matrix_pixels("Eye emissive LED matrix "+label,cx,2.675,.265,.193,.145,eye)
     # No separate brow mesh: LED arcs provide the single cute eye expression.
 
-# Sculpted 3D grin flush with the helmet's lower white ceramic shell.
-# Curved face polygons follow its elliptical surface (not flat sphere overlays).
+# V16 continuous-topology speech rig. Basis is a closed, friendly smile.
+# Shape keys export as named glTF morph targets and are shared by the browser
+# and the offline Blender renderer. The hand geometry is untouched.
 mouth=pivot("Mouth_Display",(0,-.72,2.20),head)
 def helmet_front(x,z,offset=.0):
     ratio=(x/1.052)**2+((z-2.65)/.82)**2
     return -.824*math.sqrt(max(.002,1-ratio))-offset
 
-def smile_band(name,width,depth_drop,offset,material,segments=42):
-    vertices,faces=[],[]
-    for i in range(segments+1):
-        u=-1.0+i*2.0/segments
-        x=width*u
-        # Gentle top lip; corners join a curved lower edge like the reference.
-        z_top=2.248+.020*u*u
-        z_bottom=2.262-depth_drop*max(0,1-u*u)**.63
-        for z in (z_top,z_bottom):
-            vertices.append((x,helmet_front(x,z,offset),z))
-        if i>0:
-            a=2*(i-1); b=2*i
-            faces.extend([(a,b,a+1),(b,b+1,a+1)])
-    return poly_mesh(name,vertices,faces,material,mouth)
+VISEMES={
+    "REST":(.235,.006,.027), "A":(.205,.093,.014),
+    "E":(.260,.047,.016), "O":(.115,.090,.004),
+    "U":(.093,.061,.004), "M":(.222,.003,.018),
+    "F":(.215,.021,.012), "S":(.225,.036,.012),
+    "SMILE":(.265,.042,.042),
+}
 
-smile_band("Mouth rim precision outline",.311,.195,.041,mouth_border)
-smile_band("Mouth open burgundy recess",.289,.181,.053,mouth_dark)
-# The pink tongue is a subtly convex U-shaped insert near the lower lip.
-def sculpted_tongue():
-    verts,faces=[],[]
-    count=28
-    for i in range(count+1):
-        u=-1+i*2/count
-        x=.203*u
-        u2=max(0,1-u*u)
-        ztop=2.142+.027*u2
-        zbot=2.092+.022*(1-u2)
-        for z in (ztop,zbot):
-            verts.append((x,helmet_front(x,z,.069),z))
-        if i:
-            a=2*(i-1);b=2*i
-            faces.extend([(a,b,a+1),(b,b+1,a+1)])
-    poly_mesh("Mouth warm coral tongue",verts,faces,tongue,mouth)
-sculpted_tongue()
-# Wide smiling corner details, not independent oval buttons.
-for sign,label in [(-1,"L"),(1,"R")]:
-    x=sign*.291
-    orb("Smile corner "+label,(x,helmet_front(x,2.264,.061),2.264),
-        (.021,.012,.017),mouth_border,mouth,20,12)
+def mouth_points(shape,part):
+    width,height,smile=VISEMES[shape]
+    verts=[]; count=64
+    if part=="tongue":
+        # A small rounded tongue stays within the lower interior, collapsing
+        # entirely for silence/closed consonants instead of a permanent pink bar.
+        visible=shape in {"A","E","S","SMILE"}
+        for i in range(count):
+            t=2*math.pi*i/count
+            x=width*.57*math.cos(t) if visible else 0
+            z=2.204-height*.52+height*.19*math.sin(t) if visible else 2.204
+            verts.append((x,helmet_front(x,z,.046),z))
+        verts.append((0,helmet_front(0,2.204-height*.52,.047),2.204-height*.52) if visible
+                     else (0,helmet_front(0,2.204,.046),2.204))
+        return verts
+    # Two rings form a beveled rim; the cavity uses an outer ring + center.
+    for r in range(2 if part=="rim" else 1):
+        w=width+(.014 if r==0 and part=="rim" else 0)
+        h=height+(.012 if r==0 and part=="rim" else 0)
+        off=(.038 if r==0 else .057) if part=="rim" else .036
+        for i in range(count):
+            t=2*math.pi*i/count;x=w*math.cos(t)
+            z=2.204+h*math.sin(t)+smile*math.cos(t)**2
+            verts.append((x,helmet_front(x,z,off),z))
+    if part=="cavity": verts.append((0,helmet_front(0,2.204,.035),2.204))
+    return verts
+
+for part,name,material in [
+        ("rim","Mouth rim precision outline",mouth_border),
+        ("cavity","Mouth open burgundy recess",mouth_dark),
+        ("tongue","Mouth warm coral tongue",tongue)]:
+    count=64
+    faces=[(i,(i+1)%count,(i+1)%count+count,i+count) for i in range(count)] if part=="rim" else [
+        (count,i,(i+1)%count) for i in range(count)]
+    obj=poly_mesh(name,mouth_points("REST",part),faces,material,mouth)
+    obj.shape_key_add(name="Basis")
+    inv=mouth.matrix_world.inverted()
+    for shape in VISEMES:
+        if shape=="REST":continue
+        key=obj.shape_key_add(name=shape)
+        for point,xyz in zip(key.data,mouth_points(shape,part)):
+            point.co=inv @ Vector(xyz)
+
+# Shape-key eye expressions preserve the established smiling LED identity.
+# Blink uses mesh-local Z (Blender up), avoiding glTF object-axis ambiguity.
+for side in ("L","R"):
+    eye=bpy.data.objects["Eye_"+side]
+    for obj in list(eye.children):
+        if obj.type!="MESH":continue
+        obj.shape_key_add(name="Basis")
+        for expression in ("ATTENTIVE","BLINK"):
+            key=obj.shape_key_add(name=expression)
+            for p,base in zip(key.data,obj.data.vertices):
+                world=eye.matrix_world @ base.co
+                if expression=="ATTENTIVE":
+                    # Lower the arch without disconnecting the pixel matrix.
+                    world.z=2.735+(world.z-2.735)*.64
+                else:
+                    world.z=2.735+(world.z-2.735)*.055
+                p.co=eye.matrix_world.inverted() @ world
 
 # V4: sculpted sleeves and articulated robot hands.
 # Everything is true 3D and follows named shoulder / elbow / wrist bones.
@@ -810,8 +840,8 @@ for frame,left,right,elbow,tilt,bob,mouth_open in keys:
     elbows["R"].rotation_euler=(0,elbow,0)
     head.rotation_euler=(0,tilt*.4,tilt)
     root.location.z=bob
-    mouth.scale=(1,1,.65+mouth_open*.50)
-    for obj in [shoulders["L"],shoulders["R"],elbows["R"],head,root,mouth]:
+    
+    for obj in [shoulders["L"],shoulders["R"],elbows["R"],head,root]:
         if obj == mouth:
             obj.keyframe_insert(data_path="scale",frame=frame)
         elif obj == root:
@@ -827,7 +857,7 @@ scene.render.engine='BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in bpy.types.Re
 
 # Share one named NLA track across all animated pieces, so glTF exports a
 # single synchronized gesture clip instead of one animation per body part.
-for obj in [root, head, shoulders["L"], shoulders["R"], elbows["R"], mouth]:
+for obj in [root, head, shoulders["L"], shoulders["R"], elbows["R"]]:
     anim = obj.animation_data
     if anim and anim.action:
         action = anim.action

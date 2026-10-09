@@ -6,6 +6,9 @@ on:
     paths:
       - "blender/**"
       - "app/studio3d.js"
+      - "app/performance.mjs"
+      - "scripts/render_news_demo.py"
+      - "server/render3d.py"
       - "index.html"
       - "studio.html"
       - "tests/smoke3d.cjs"
@@ -61,6 +64,8 @@ jobs:
           npm install --silent playwright@1.56.1
           cd "$GITHUB_WORKSPACE"
           python3 -m http.server 8765 >/tmp/robot-http.log 2>&1 &
+          node tests/performance.test.mjs
+          python3 -m unittest discover -s tests -p 'test_performance.py'
           NODE_PATH=/tmp/robot-playwright/node_modules node tests/smoke3d.cjs
 
       - name: Save grip inspection screenshots
@@ -112,3 +117,45 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  render-demo:
+    needs: build
+    # Render a take on explicit workflow dispatch or a [demo] commit only.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[demo]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: robot-studio-3d-model
+          path: models
+      - name: Install Blender and diagnostic voice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender ffmpeg xvfb xauth espeak-ng fonts-dejavu-core python3-venv
+          python3 -m venv /tmp/robot-render-venv
+          /tmp/robot-render-venv/bin/pip install -r server/requirements.txt
+      - name: Render real 3D speaking take
+        run: /tmp/robot-render-venv/bin/python scripts/render_news_demo.py
+      - name: Verify video and extract review frames
+        run: |
+          ffprobe -v error -show_entries stream=codec_type,width,height -show_entries format=duration -of json demo-output/robot-speaking-demo.mp4 > demo-output/video-info.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('demo-output/video-info.json'))
+          assert any(s['codec_type']=='audio' for s in d['streams'])
+          assert any(s.get('width')==360 and s.get('height')==640 for s in d['streams'])
+          assert 10<float(d['format']['duration'])<30
+          print('PASS actual Blender portrait video with narration',d['format']['duration'])
+          PY
+          for t in 1 5 9 13; do
+            ffmpeg -y -loglevel error -ss "$t" -i demo-output/robot-speaking-demo.mp4 -frames:v 1 "demo-output/frame-$t.png"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: robot-speaking-demo
+          path: demo-output/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -7,15 +7,16 @@ from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 
 from .render import render_mp4
+from .render3d import available as renderer3d_available, render_3d_mp4
 from fastapi.middleware.cors import CORSMiddleware
 
-VERSION="0.2.0"; SR=24000; FPS=30; MAX_BYTES=20*1024*1024; MAX_STORY_BYTES=10*1024*1024; MAX_DURATION_SECONDS=120; API_KEY=os.getenv("ROBOT_STUDIO_API_KEY","")
+VERSION="0.3.0"; SR=24000; FPS=30; MAX_BYTES=20*1024*1024; MAX_STORY_BYTES=10*1024*1024; MAX_DURATION_SECONDS=120; API_KEY=os.getenv("ROBOT_STUDIO_API_KEY","")
 app=FastAPI(title="Robot Studio API",version=VERSION)
 app.add_middleware(CORSMiddleware,allow_origins=["https://humberto0o0.github.io","http://localhost:8080","http://127.0.0.1:8080"],allow_credentials=False,allow_methods=["GET","POST"],allow_headers=["*"])
 
 @app.middleware("http")
 async def api_key_guard(request:Request,call_next):
-    if API_KEY and request.url.path in {"/analyze","/director","/render"}:
+    if API_KEY and request.url.path in {"/analyze","/director","/render","/render3d"}:
         supplied=request.headers.get("X-Robot-Studio-Key","")
         if not hmac.compare_digest(supplied,API_KEY):
             return JSONResponse(status_code=401,content={"detail":"Unauthorized"})
@@ -145,7 +146,7 @@ def align(t,script,headline=""):
 def health(): return {"ok":True,"service":"robot-studio-api","version":VERSION}
 
 @app.get("/capabilities")
-def capabilities(): return {"audioAnalysis":True,"scriptAlignment":True,"semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","maxAudioSeconds":MAX_DURATION_SECONDS,"apiKeyProtection":bool(API_KEY),"notes":"Set ROBOT_STUDIO_API_KEY in hosted environments. Transcription and production 1080x1920 rendering are next."}
+def capabilities(): return {"audioAnalysis":True,"scriptAlignment":"estimated","semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering3d":renderer3d_available(),"rendering3dMaxSeconds":30,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","maxAudioSeconds":MAX_DURATION_SECONDS,"apiKeyProtection":bool(API_KEY),"notes":"Set ROBOT_STUDIO_API_KEY in hosted environments. Transcription and production 1080x1920 rendering are next."}
 
 @app.post("/analyze")
 async def analyze(audio:Annotated[UploadFile,File(...)]):
@@ -212,3 +213,40 @@ async def render_video(
             "Cache-Control": "no-store",
         },
     )
+
+
+@app.post("/render3d")
+async def render_video_3d(
+    audio: Annotated[UploadFile, File(...)],
+    script: Annotated[str, Form()] = "",
+    quality: Annotated[str, Form()] = "preview",
+    performance: Annotated[str, Form()] = "",
+) -> Response:
+    """Render the real Blender model. Existing /render remains the legacy path."""
+    if not renderer3d_available():
+        raise HTTPException(503,"This server does not have the optional Blender renderer installed")
+    blob=await audio.read(MAX_BYTES+1)
+    pcm=decode(blob)
+    if len(pcm)/SR>30:raise HTTPException(413,"3D API takes must be 30 seconds or shorter")
+    if quality not in {"draft","preview","fullhd"}:raise HTTPException(422,"Unknown quality preset")
+    timeline=analyze_pcm(pcm)
+    if script.strip():timeline=align(timeline,script.strip())
+    if performance:
+        if len(performance)>2*1024*1024:raise HTTPException(413,"Performance JSON is too large")
+        try:
+            import json
+            from blender.performance import normalize
+            imported=json.loads(performance)
+            normalized=normalize(imported)
+            if abs(normalized['duration']-len(pcm)/SR)>.25:raise ValueError('Performance duration does not match audio')
+            timeline={**imported,'duration':len(pcm)/SR}
+        except (ValueError,TypeError,KeyError) as exc:
+            raise HTTPException(422,str(exc)) from exc
+    try:
+        mp4=await run_in_threadpool(render_3d_mp4,blob,timeline,quality)
+    except ValueError as exc:raise HTTPException(422,str(exc)) from exc
+    except subprocess.TimeoutExpired as exc:raise HTTPException(504,"3D render timed out") from exc
+    except (RuntimeError,OSError,subprocess.CalledProcessError) as exc:
+        raise HTTPException(503,"3D rendering failed or is busy; inspect server logs") from exc
+    return Response(content=mp4,media_type="video/mp4",headers={
+        "Content-Disposition":'attachment; filename="robot-3d-performance.mp4"',"Cache-Control":"no-store"})

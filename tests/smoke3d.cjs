@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');
 const fs=require('fs');
-setTimeout(()=>{console.error('SMOKE TIMEOUT after 150 seconds');process.exit(2);},150000).unref();
+setTimeout(()=>{console.error('SMOKE TIMEOUT after 210 seconds');process.exit(2);},210000).unref();
 const assert=require('assert');
 const data=fs.readFileSync('models/robot-prototype.glb');
 const jsonSize=data.readUInt32LE(12);
@@ -81,6 +81,14 @@ for(let j=0;j<4;j++){
  assert(modelNames.includes('Finger_L_'+j+'_Middle'),'Missing middle articulation pivot');
 }
 console.log('PASS V15 three phalanges and two hinge seams per gripping finger');
+for(const name of ['Mouth rim precision outline','Mouth open burgundy recess','Mouth warm coral tongue']){
+ const node=gltf.nodes.find(n=>n.name===name),mesh=gltf.meshes[node.mesh];
+ for(const shape of ['A','E','O','U','M','F','S','SMILE'])
+  assert(mesh.extras?.targetNames?.includes(shape),'Missing exported speech shape '+name+' / '+shape);
+}
+assert(gltf.meshes.some(m=>m.extras?.targetNames?.includes('BLINK')),'Blink morph not exported');
+console.log('PASS exported speech and eye morph targets');
+
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
@@ -199,6 +207,19 @@ console.log('PASS V15 three phalanges and two hinge seams per gripping finger');
  await page.screenshot({path:'test-results/v15-mic-side-closeup.png',fullPage:false});
  await page.locator('[data-camera-control="reset"]').click();
  console.log('PASS V15 front, three-quarter and side grip screenshots captured');
+ await page.locator('[data-tab="direct"]').click();
+ await page.locator('details').evaluate(el=>el.open=true);
+ for(const shape of ['REST','A','O','M']){
+  await page.locator('#mouthShape').selectOption(shape);
+  await page.waitForFunction(s=>document.getElementById('stage').dataset.mouthShape===s,shape);
+  assert(Number(await stage.getAttribute('data-face-morph-count'))>=7,'Face rig not connected');
+  await page.waitForTimeout(180);
+  if(shape==='A'||shape==='REST')await stage.screenshot({path:'test-results/v16-face-'+shape+'.png'});
+ }
+ await page.locator('#mouthShape').selectOption('AUTO');
+ await page.locator('[data-tab="create"]').click();
+ console.log('PASS browser speech shape controls and morph rig');
+
  await page.locator('#demo').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent==='Voice analyzed',{timeout:20000});
  console.log('PASS demo audio decoded');

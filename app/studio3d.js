@@ -1,3 +1,4 @@
+import {SPEECH_SHAPES,estimateVisemes,validateTiming,shapeAt,blinkAt} from './performance.mjs';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
@@ -17,7 +18,7 @@ const state={ready:false,file:null,objectURL:null,duration:0,buffer:null,env:[],
  words:[],story:null,storyURL:null,script:"",headline:"",playing:false,demo:false,analyzing:false,
  t:0,lastT:0,uiDrag:false,pose:"neutral",poseUntil:0,poseIndex:0,angle:0,pitch:0.042,orbitDistance:8.35,dragX:null,
  record:null,recordStarted:false,mediaSource:null,audioContext:null,destination:null,
- mouthValue:0,blinkValue:0,lastBlink:0,videoURL:null,gestureT:0};
+ visemes:[],timingSource:"estimated",manualShape:"AUTO",expression:"AUTO",mouthValue:0,blinkValue:0,lastBlink:0,videoURL:null,gestureT:0};
 const settings={mouth:true,gestures:true,captions:true,blink:true,float:true,camera:true,energy:.6};
 let rig=null;
 let captureScale=1;
@@ -41,10 +42,11 @@ try{
  fillLight=new THREE.DirectionalLight(0x399dff,2.0);fillLight.position.set(3,2,-2);scene.add(fillLight);
 }catch(error){$('status').textContent='3D graphics unavailable';$('liveAction').textContent='This browser cannot start WebGL. '+error.message;}
 
-const nodes={},defaults={};
+const nodes={},defaults={},faceMeshes=[];
 function findRig(model){
  model.traverse(o=>{
    if(o.name)nodes[o.name]=o;
+   if(o.morphTargetDictionary)faceMeshes.push(o);
    if(o.isObject3D)defaults[o.uuid]={q:o.quaternion.clone(),p:o.position.clone(),scale:o.scale.clone()};
  });
  rig=model;
@@ -54,7 +56,7 @@ function findRig(model){
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
- new GLTFLoader().load('./models/robot-prototype.glb?v=23',
+ new GLTFLoader().load('./models/robot-prototype.glb?v=24',
   gltf=>{findRig(gltf.scene);state.ready=true;updateControls();},
   undefined,
   err=>{$('status').textContent='3D model failed';$('liveAction').textContent='Could not load the .glb model. Check connection or reload. '+String(err?.message||err);}
@@ -211,15 +213,23 @@ function animate3D(t,dt,loud){
  applyJoint('Thumb_R_Root','z',-.012+gestureSoft*.22);
  applyJoint('Thumb_L_Root','z',-.012-.008*loud);
  const mouthOn=settings.mouth&&(state.duration?activeSpeech(t):false);
- const target=mouthOn?clamp(loud*1.15,.04,1):0;
- state.mouthValue=mix(state.mouthValue,target,clamp(dt*13,0,1));
- const mo=nodes['Mouth_Display'];
- if(mo){const ds=defaults[mo.uuid].scale;mo.scale.set(ds.x,ds.y,ds.z*(.75+.78*state.mouthValue));}
- const blinkActive=settings.blink&&(Math.sin(ph*.41+1.8)>.988||Math.sin(ph*.71+2.1)>.995);
- state.blinkValue=mix(state.blinkValue,blinkActive?.06:1,clamp(dt*20,0,1));
- for(let side of ['L','R']){
-  const eye=nodes['Eye_'+side];if(eye){const ds=defaults[eye.uuid].scale;eye.scale.z=ds.z*state.blinkValue;}
+ let shape=state.manualShape!=='AUTO'&&!state.playing?state.manualShape:'REST';
+ if(state.manualShape==='AUTO'||state.playing){
+  if(mouthOn)shape=state.visemes.length?shapeAt(state.visemes,t):(loud>.55?'A':loud>.2?'E':'S');
  }
+ if(!settings.mouth)shape='REST';
+ const blink=settings.blink?blinkAt(ph):0;
+ const attentive=state.expression==='ATTENTIVE'?1:state.expression==='FRIENDLY'?0:
+  (intro==='wave'||intro==='present'?0:.75);
+ for(const mesh of faceMeshes){
+  for(const [key,index] of Object.entries(mesh.morphTargetDictionary)){
+   const target=key==='BLINK'?blink:key==='ATTENTIVE'?attentive*(1-blink):key===shape?1:0;
+   mesh.morphTargetInfluences[index]=mix(mesh.morphTargetInfluences[index],target,clamp(dt*24,0,1));
+  }
+ }
+ canvas.dataset.mouthShape=shape;
+ canvas.dataset.faceMorphCount=faceMeshes.length;
+ canvas.dataset.timingSource=state.timingSource;
  const yaw=state.angle+(settings.camera?.015*Math.sin(ph*.34):0);
  const pitch=state.pitch,dist=state.orbitDistance;
  camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist,
@@ -360,6 +370,8 @@ function drawWave(){
 function parseContent(){
  state.script=$('script').value.trim();state.headline=$('headline').value.trim();
  state.words=mapWords(state.script,state.speech,state.duration);
+ state.visemes=estimateVisemes(state.words,state.speech,state.duration);
+ state.timingSource='estimated';
  $('scriptHint').textContent=state.script?state.words.length+' words scheduled across detected speech sections (approximate timing).':'Audio-only mode; voice drives mouth energy and joints, no word captions.';
  if(state.duration)makeCues();
 }
@@ -507,14 +519,29 @@ $('resetCamera').addEventListener('click',resetCamera);
 $('previewPose').addEventListener('click',()=>{const poses=['wave','present','point','neutral'];state.pose=poses[state.poseIndex++%poses.length];state.poseUntil=performance.now()+2500;});
 document.querySelectorAll('[data-pose]').forEach(b=>b.addEventListener('click',()=>{state.pose=b.dataset.pose;state.poseUntil=performance.now()+3200;if(state.duration){audio.pause();state.playing=false;updateControls();}}));
 for(let name of ['mouth','gestures','captions','blink','float','camera'])$(name).addEventListener('change',e=>settings[name]=e.target.checked);
+$('mouthShape').addEventListener('change',e=>state.manualShape=e.target.value);
+$('expression').addEventListener('change',e=>state.expression=e.target.value);
+$('timingFile').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(!state.duration)throw Error('Load the matching voice audio first.');
+  if(file.size>2*1024*1024)throw Error('Timing file must be smaller than 2 MB.');
+  const timing=validateTiming(JSON.parse(await file.text()),state.duration);
+  state.visemes=timing.visemes;if(timing.words.length)state.words=timing.words;
+  state.timingSource=timing.source;
+  $('scriptHint').textContent='Imported speech timings loaded. Applying a new script returns to estimated timing.';
+ }catch(err){$('scriptHint').textContent=err.message;}
+ e.target.value='';
+});
 $('energy').addEventListener('input',e=>{settings.energy=+e.target.value/100;$('energyValue').value=e.target.value+'%';});
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));
  document.querySelectorAll('[data-view]').forEach(x=>x.hidden=x.dataset.view!==b.dataset.tab);
 }));
 function exportJSON(){
- const obj={version:1,engine:'Robot Studio 3D',fileName:state.file?.name||'',duration:state.duration,
+ const obj={schema:'robot-studio-performance/v3',version:3,engine:'Robot Studio 3D',fileName:state.file?.name||'',duration:state.duration,
  settings:{...settings},transcript:state.script,headline:state.headline,
+ visemes:state.visemes,timingSource:state.timingSource,frames:state.env.map((level,i)=>({t:i/FPS,level})),
  speech:state.speech,pauses:state.pauses,emphasis:state.emphasis,cues:state.cues,words:state.words,
  note:'Speech/word timestamps estimated locally from RMS; not a certified transcription or forced alignment.'};
  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});saveFile(blob,'robot-director.json');
