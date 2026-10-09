@@ -69,14 +69,15 @@ world.node_tree.nodes['Background'].inputs[1].default_value=.45
 
 def area(name,loc,power,size,color):
     data=bpy.data.lights.new(name,'AREA');data.energy=power;data.shape='DISK';data.size=size;data.color=color
+    data.specular_factor=.12  # Keep softbox reflections from obscuring the LED eyes.
     o=bpy.data.objects.new(name,data);scene.collection.objects.link(o);o.location=loc
     o.rotation_euler=(Vector((0,0,1.8))-o.location).to_track_quat('-Z','Y').to_euler()
 area('Large soft key',(-3,-4,6),500,5,(.85,.93,1))
 area('Warm soft fill',(3,-3,3),280,4,(1,.88,.78))
 area('Cobalt rim',(1,2,4),450,3,(.22,.47,1))
 camdata=bpy.data.cameras.new('News portrait camera');cam=bpy.data.objects.new('News portrait camera',camdata);scene.collection.objects.link(cam)
-cam.location=(0,-8.2,2.55);target=Vector((0,-.05,1.85));cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
-camdata.type='ORTHO';camdata.ortho_scale=5.8;scene.camera=cam
+cam.location=(.15,-8.2,2.55);target=Vector((.15,-.05,1.85));cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
+camdata.type='ORTHO';camdata.ortho_scale=6.8;scene.camera=cam
 scene.render.engine='BLENDER_EEVEE_NEXT' if bpy.app.version>=(4,2,0) else 'BLENDER_EEVEE'
 if hasattr(scene,'eevee'):
     scene.eevee.taa_render_samples=opt.samples

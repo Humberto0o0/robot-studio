@@ -48,7 +48,7 @@ def render_3d_file(audio_path,plan,output_path,quality='preview',fps=24,timeout=
         args=['ffmpeg','-y','-loglevel','error','-i',str(silent),'-i',str(audio_path)]
         if write_captions(plan,captions):
             # Temp paths are generated internally and never taken from upload names.
-            args+=['-vf',f"subtitles={captions}:force_style='FontName=DejaVu Sans,FontSize=18,Alignment=2,MarginV=48,Outline=2'",'-c:v','libx264','-preset','fast','-crf','19']
+            args+=['-vf',f"subtitles={captions}:force_style='FontName=DejaVu Sans,FontSize=13,Alignment=2,MarginV=38,Outline=1'",'-c:v','libx264','-preset','fast','-crf','19']
         else:args+=['-c:v','copy']
         args+=['-map','0:v:0','-map','1:a:0','-c:a','aac','-b:a','128k','-t',str(plan['duration']),'-movflags','+faststart',str(output_path)]
         subprocess.run(args,check=True,timeout=90)
