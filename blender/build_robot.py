@@ -820,6 +820,19 @@ for k in range(16):
 orb("Microphone thin cobalt lower capsule seam",
     (-.438,-.943,1.947),(.130,.128,.011),mic_trim,wrists["L"],36,16)
 
+# All woven-wire pieces are rigidly attached to the same wrist. Join only
+# those static meshes, preserving the editable hand rig and the capsule body.
+# This replaces hundreds of tiny draw calls with one material batch.
+wire_parts=[o for o in bpy.context.scene.objects if o.name.startswith(
+    ("Microphone woven latitude ","Microphone woven meridian "))]
+if wire_parts:
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in wire_parts:o.select_set(True)
+    bpy.context.view_layer.objects.active=wire_parts[0]
+    bpy.ops.object.join()
+    bpy.context.object.name="Microphone unified woven grille"
+    bpy.ops.object.select_all(action="DESELECT")
+
 ring("Hover ground ring",(0,0,.36),.74,.044,cyan,root)
 orb("Hover core",(0,0,.51),(.26,.26,.09),cyan,root)
 
@@ -840,7 +853,7 @@ for frame,left,right,elbow,tilt,bob,mouth_open in keys:
     elbows["R"].rotation_euler=(0,elbow,0)
     head.rotation_euler=(0,tilt*.4,tilt)
     root.location.z=bob
-    
+
     for obj in [shoulders["L"],shoulders["R"],elbows["R"],head,root]:
         if obj == mouth:
             obj.keyframe_insert(data_path="scale",frame=frame)

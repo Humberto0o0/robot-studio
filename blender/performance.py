@@ -13,10 +13,14 @@ def normalize(data):
     duration=float(data.get('duration',0))
     if not math.isfinite(duration) or not 0<duration<=120:
         raise ValueError('Performance duration must be between 0 and 120 seconds')
+    for name in ('visemes','words','cues','gestures','frames'):
+        values=data.get(name,[])
+        if not isinstance(values,list) or len(values)>30000 or any(not isinstance(v,dict) for v in values):
+            raise ValueError('Invalid performance '+name)
     cues=[];last=0
     for v in data.get('visemes',[]):
         start=float(v['time']);end=float(v['end']);shape=v['shape']
-        if not all(math.isfinite(x) for x in (start,end)) or start<last-1e-6 or end<=start or end>duration+.025 or shape not in SHAPES:
+        if not all(math.isfinite(x) for x in (start,end)) or start<last-1e-6 or end<=start or end>duration+.025 or shape not in (*SHAPES,'REST'):
             raise ValueError('Invalid or overlapping speech cue')
         cues.append(dict(time=start,end=min(end,duration),shape=shape));last=end
     words=[]
@@ -35,7 +39,13 @@ def normalize(data):
         t=float(f.get('t',0));level=float(f.get('level',0))
         if not math.isfinite(t) or not math.isfinite(level) or not 0<=t<=duration+.04:raise ValueError('Invalid audio envelope')
         frames.append(dict(t=t,level=max(0,min(1,level))))
-    return dict(duration=duration,visemes=cues,words=sorted(words,key=lambda w:w['time']),
+    settings=data.get('settings',{})
+    if not isinstance(settings,dict):raise ValueError('Invalid settings')
+    energy=float(settings.get('energy',.6))
+    if not math.isfinite(energy):raise ValueError('Invalid movement energy')
+    settings={**{k:bool(settings.get(k,True)) for k in ('mouth','gestures','blink','float','captions')},
+              'energy':max(0,min(1,energy)),'expression':settings.get('expression','AUTO')}
+    return dict(settings=settings,duration=duration,visemes=cues,words=sorted(words,key=lambda w:w['time']),
                 gestures=sorted(gestures,key=lambda g:g['time']),frames=sorted(frames,key=lambda f:f['t']),
                 headline=str(data.get('headline',data.get('story',{}).get('headline','')))[:180],
                 timingSource=data.get('timingSource','estimated'))

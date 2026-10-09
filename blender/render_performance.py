@@ -35,15 +35,18 @@ face=[o for o in bpy.data.objects if o.type=='MESH' and o.data.shape_keys]
 weights={name:0. for name in SHAPES}
 fps=opt.fps;num=math.ceil(plan['duration']*fps)
 for frame in range(1,num+1):
-    t=(frame-1)/fps;shape=shape_at(plan,t);pose,pulse=pose_at(plan,t)
+    t=(frame-1)/fps;shape=shape_at(plan,t) if plan['settings']['mouth'] else 'REST';pose,pulse=pose_at(plan,t)
+    if not plan['settings']['gestures']:pose,pulse='neutral',0
     for name in SHAPES:weights[name]+=(float(name==shape)-weights[name])*(1-math.exp(-24/fps))
-    blink=blink_at(t);attentive=0 if pose in ('wave','present','open-hand') else .75
+    blink=blink_at(t) if plan['settings']['blink'] else 0
+    expression=plan['settings']['expression']
+    attentive=1 if expression=='ATTENTIVE' else 0 if expression=='FRIENDLY' else 0 if pose in ('wave','present','open-hand') else .75
     for obj in face:
         for key in obj.data.shape_keys.key_blocks:
             if key.name=='Basis':continue
             key.value=blink if key.name=='BLINK' else attentive*(1-blink) if key.name=='ATTENTIVE' else weights.get(key.name,0)
             key.keyframe_insert('value',frame=frame)
-    raised={'wave':-.72,'present':-.40,'open-hand':-.40,'point':-.56,'emphasis':-.30,'excited':-.40}.get(pose,0)*pulse*.6
+    raised={'wave':-.72,'present':-.40,'open-hand':-.40,'point':-.56,'emphasis':-.30,'excited':-.40}.get(pose,0)*pulse*plan['settings']['energy']
     rotations={
         'Head_Pivot':(0,.018*math.sin(t*1.1),.021*math.sin(t*.8)),
         'Shoulder_R':(0,raised,0), 'Elbow_R':(0,.10*pulse,0),
@@ -53,7 +56,7 @@ for frame in range(1,num+1):
     if pose in ('nod','emphasis'):rotations['Head_Pivot']=(.05*math.sin(t*6)*pulse,0,0)
     for name,delta in rotations.items():
         obj=bpy.data.objects[name];obj.rotation_euler=tuple(a+b for a,b in zip(base[name],delta));obj.keyframe_insert('rotation_euler',frame=frame)
-    root.location=(base_root[0],base_root[1],base_root[2]+.015*math.sin(t*1.65));root.keyframe_insert('location',frame=frame)
+    root.location=(base_root[0],base_root[1],base_root[2]+(.015*math.sin(t*1.65) if plan['settings']['float'] else 0));root.keyframe_insert('location',frame=frame)
 # Linear keyframes preserve the sampled plan, no spline overshoot at lip closure.
 for obj in list(bpy.data.objects)+[o.data.shape_keys for o in face]:
     if obj.animation_data and obj.animation_data.action:

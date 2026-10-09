@@ -87,7 +87,8 @@ for(const name of ['Mouth rim precision outline','Mouth open burgundy recess','M
   assert(mesh.extras?.targetNames?.includes(shape),'Missing exported speech shape '+name+' / '+shape);
 }
 assert(gltf.meshes.some(m=>m.extras?.targetNames?.includes('BLINK')),'Blink morph not exported');
-console.log('PASS exported speech and eye morph targets');
+assert(modelNames.includes('Microphone unified woven grille'),'Static microphone grille is not batched');
+console.log('PASS exported speech and eye morph targets, batched microphone grille');
 
 
 (async()=>{
@@ -103,7 +104,7 @@ console.log('PASS exported speech and eye morph targets');
  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('3D ready'),null,{timeout:20000}).catch(async()=>{console.log('STATUS',await page.locator('#status').innerText());});
  const status=await page.locator('#status').innerText();
  assert(status.includes('3D ready'),'Real glTF model did not load: '+status);
- assert(status.includes('V2 expressive helmet'),'Premium V2 Blender head/visor geometry was not detected: '+status);
+ assert(status.includes('Speech & expressions'),'Premium V2 Blender head/visor geometry was not detected: '+status);
  console.log('PASS 3D model loaded',status);
  await page.waitForTimeout(900);
  await page.screenshot({path:'test-results/v2-helmet-iphone.png',fullPage:false});
@@ -223,6 +224,12 @@ console.log('PASS exported speech and eye morph targets');
  await page.locator('#demo').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent==='Voice analyzed',{timeout:20000});
  console.log('PASS demo audio decoded');
+ await page.locator('#timingFile').setInputFiles({name:'timing.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({
+  schema:'robot-studio-timing/v1',duration:10,visemes:[{time:0,end:1,shape:'M'},{time:1,end:2,shape:'O'}]
+ }))});
+ await page.waitForFunction(()=>document.getElementById('stage').dataset.timingSource==='imported');
+ console.log('PASS matching speech timing file imported');
+
  const speech=await page.locator('#speechCount').innerText();
  await page.locator('[data-tab="direct"]').click();
  const count=await page.locator('#gestureCount').innerText();

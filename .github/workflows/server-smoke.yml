@@ -83,6 +83,12 @@ jobs:
           print("render bytes:",len(data))
           PY
 
+      - name: Check optional 3D endpoint boundary behavior
+        run: |
+          docker cp blender robot-studio-api:/app/blender
+          docker cp tests/test_api3d.py robot-studio-api:/app/test_api3d.py
+          docker exec robot-studio-api python -m unittest test_api3d
+
       - name: Container logs
         if: always()
         run: docker logs robot-studio-api || true

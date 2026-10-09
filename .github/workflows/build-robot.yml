@@ -131,9 +131,12 @@ jobs:
           name: robot-studio-3d-model
           path: models
       - name: Install Blender and diagnostic voice
+        timeout-minutes: 8
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends blender ffmpeg xvfb xauth espeak-ng fonts-dejavu-core python3-venv
+          sudo apt-get install -y --no-install-recommends blender ffmpeg xvfb xauth espeak-ng fonts-dejavu-core python3-venv || (
+            sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq &&
+            sudo apt-get install -y --no-install-recommends blender ffmpeg xvfb xauth espeak-ng fonts-dejavu-core python3-venv
+          )
           python3 -m venv /tmp/robot-render-venv
           /tmp/robot-render-venv/bin/pip install -r server/requirements.txt
       - name: Render real 3D speaking take

@@ -11,7 +11,7 @@ class PerformanceTests(unittest.TestCase):
         self.assertEqual(a,b);self.assertEqual(shape_at(a,.5),'REST');self.assertEqual(shape_at(a,.2),'A')
         self.assertEqual(pose_at(a,1.9),('neutral',0))
     def test_invalid_timelines(self):
-        for data in [{'duration':float('nan')},{'duration':2,'visemes':[{'time':-1,'end':1,'shape':'A'}]},{'duration':2,'visemes':[{'time':0,'end':1,'shape':'CODE'}]}]:
+        for data in [{'duration':2,'words':'bad'},{'duration':2,'visemes':[1]},{'duration':float('nan')},{'duration':2,'visemes':[{'time':-1,'end':1,'shape':'A'}]},{'duration':2,'visemes':[{'time':0,'end':1,'shape':'CODE'}]}]:
             with self.assertRaises(ValueError):normalize(data)
     def test_caption_output(self):
         with TemporaryDirectory() as d:

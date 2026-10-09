@@ -52,11 +52,11 @@ function findRig(model){
  rig=model;
  // Three.js glTF positions are anchored in real 3D, including shoulder/elbow joints.
  scene.add(rig);
- $('status').textContent=Object.keys(nodes).some(n=>/Eye[_ ]emissive[_ ]LED[_ ]matrix[_ ]L/i.test(n))&&Object.keys(nodes).some(n=>/Mouth[_ ]open[_ ]burgundy[_ ]recess/i.test(n))?'3D ready · V2 expressive helmet':'3D ready';
+ $('status').textContent=Object.keys(nodes).some(n=>/Eye[_ ]emissive[_ ]LED[_ ]matrix[_ ]L/i.test(n))&&Object.keys(nodes).some(n=>/Mouth[_ ]open[_ ]burgundy[_ ]recess/i.test(n))?'3D ready · Speech & expressions':'3D ready';
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
- new GLTFLoader().load('./models/robot-prototype.glb?v=24',
+ new GLTFLoader().load('./models/robot-prototype.glb?v=25',
   gltf=>{findRig(gltf.scene);state.ready=true;updateControls();},
   undefined,
   err=>{$('status').textContent='3D model failed';$('liveAction').textContent='Could not load the .glb model. Check connection or reload. '+String(err?.message||err);}
@@ -215,7 +215,8 @@ function animate3D(t,dt,loud){
  const mouthOn=settings.mouth&&(state.duration?activeSpeech(t):false);
  let shape=state.manualShape!=='AUTO'&&!state.playing?state.manualShape:'REST';
  if(state.manualShape==='AUTO'||state.playing){
-  if(mouthOn)shape=state.visemes.length?shapeAt(state.visemes,t):(loud>.55?'A':loud>.2?'E':'S');
+  if(state.timingSource==='imported'&&state.duration)shape=shapeAt(state.visemes,t);
+  else if(mouthOn)shape=state.visemes.length?shapeAt(state.visemes,t):(loud>.55?'A':loud>.2?'E':'S');
  }
  if(!settings.mouth)shape='REST';
  const blink=settings.blink?blinkAt(ph):0;
@@ -540,7 +541,7 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()
 }));
 function exportJSON(){
  const obj={schema:'robot-studio-performance/v3',version:3,engine:'Robot Studio 3D',fileName:state.file?.name||'',duration:state.duration,
- settings:{...settings},transcript:state.script,headline:state.headline,
+ settings:{...settings,expression:state.expression},transcript:state.script,headline:state.headline,
  visemes:state.visemes,timingSource:state.timingSource,frames:state.env.map((level,i)=>({t:i/FPS,level})),
  speech:state.speech,pauses:state.pauses,emphasis:state.emphasis,cues:state.cues,words:state.words,
  note:'Speech/word timestamps estimated locally from RMS; not a certified transcription or forced alignment.'};

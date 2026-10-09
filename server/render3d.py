@@ -17,7 +17,7 @@ def timestamp(seconds):
 
 
 def write_captions(plan,path):
-    words=plan.get('words',[]);blocks=[]
+    words=plan.get('words',[]) if plan.get('settings',{}).get('captions',True) else [];blocks=[]
     for i in range(0,len(words),5):
         group=words[i:i+5];start=group[0].get('time',group[0].get('start',0))
         end=words[i+5].get('time',words[i+5].get('start',0)) if i+5<len(words) else plan['duration']

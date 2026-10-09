@@ -130,8 +130,12 @@ def align(t,script,headline=""):
         words.append({"text":tok,"clean":clean,"start":st,"end":en}); letters=list(clean); prev=""
         for j,c in enumerate(letters):
             sh=viseme(c,letters[j+1] if j+1<len(letters) else "")
-            if sh==prev and j<len(letters)-1: continue
-            prev=sh; vs.append({"time":st+(en-st)*(j/max(1,len(letters))),"end":st+(en-st)*((j+1)/max(1,len(letters))),"shape":sh,"word":idx})
+            end=st+(en-st)*((j+1)/max(1,len(letters)))
+            if sh==prev and vs and vs[-1]['word']==idx:
+                vs[-1]['end']=end
+            else:
+                vs.append({"time":st+(en-st)*(j/max(1,len(letters))),"end":end,"shape":sh,"word":idx})
+            prev=sh
         gt=gesture_for(clean)
         if gt and st-last>1.15: gs.append({"time":st,"type":gt,"duration":.78,"source":"script","word":tok}); last=st
     t["words"]=words; t["visemes"]=vs; t["gestures"]=sorted(t["gestures"]+gs,key=lambda g:g["time"])
@@ -146,7 +150,7 @@ def align(t,script,headline=""):
 def health(): return {"ok":True,"service":"robot-studio-api","version":VERSION}
 
 @app.get("/capabilities")
-def capabilities(): return {"audioAnalysis":True,"scriptAlignment":"estimated","semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering3d":renderer3d_available(),"rendering3dMaxSeconds":30,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","maxAudioSeconds":MAX_DURATION_SECONDS,"apiKeyProtection":bool(API_KEY),"notes":"Set ROBOT_STUDIO_API_KEY in hosted environments. Transcription and production 1080x1920 rendering are next."}
+def capabilities(): return {"audioAnalysis":True,"scriptAlignment":True,"alignmentMethod":"estimated","semanticGestures":True,"storyCuePlanning":True,"transcription":False,"rendering3d":renderer3d_available(),"rendering3dMaxSeconds":30,"rendering":True,"renderFormat":"540x960 H.264/AAC MP4 preview","maxAudioSeconds":MAX_DURATION_SECONDS,"apiKeyProtection":bool(API_KEY),"notes":"Set ROBOT_STUDIO_API_KEY in hosted environments. Transcription and production 1080x1920 rendering are next."}
 
 @app.post("/analyze")
 async def analyze(audio:Annotated[UploadFile,File(...)]):
