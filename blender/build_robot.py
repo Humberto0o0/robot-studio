@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.3, shared ceramic palm on both hands and recessed microphone cuff.
+"""Robot Studio - procedural, editable Blender robot v1.4, rotated master hand shell and concealed microphone grip layers.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -527,12 +527,18 @@ def wrist_detail(side,center,hand_position,elbow):
     bridge_end=c+travel*.82
     sleeve_mesh("Continuous cobalt wrist extension "+side,
                 tuple(c),tuple(bridge_end),.160,.133,elbow,woven)
+    # Keep blue fabric behind the mic palm. The previous end-cap sphere
+    # reached under and THROUGH its white shell during close-up rotation.
+    sleeve_t=.36 if side=="L" else .70
+    sleeve_dims=(.135,.123,.130) if side=="L" else (.145,.135,.138)
     orb("Cuff seamless cobalt sleeve end "+side,
-        tuple(c+travel*.70),(.145,.135,.138),woven,elbow,40,26)
+        tuple(c+travel*sleeve_t),sleeve_dims,woven,elbow,40,26)
     # Fine porcelain shirt cuff lip: mostly hidden by overlapping outer sleeve
     # and by the hand, visible only as a clean narrow line.
+    cuff_t=.65 if side=="L" else .87
+    cuff_dims=(.112,.105,.106) if side=="L" else (.119,.110,.110)
     orb("Cuff slim porcelain transition "+side,
-        tuple(c+travel*.87),(.119,.110,.110),cuff_white,elbow,36,22)
+        tuple(c+travel*cuff_t),cuff_dims,cuff_white,elbow,36,22)
     # On the microphone wrist the previous oversized blue trim projected
     # directly THROUGH the white palm. Recess it inside the sleeve.
     trim_t=.47 if side=="L" else .77
@@ -562,14 +568,22 @@ def tapered_finger_segment(name,start,end,radius_a,radius_b,material,parent):
     obj.modifiers.new("Rounded highlights","WEIGHTED_NORMAL")
     return finish(obj,material,parent)
 
-def matching_ceramic_palm(side,center,parent,show_badge=False):
-    """One master 3D palm design for both arms.
+def matching_ceramic_palm(side,center,parent,show_badge=False,gripping=False):
+    """Use the approved hand shell in two orientations.
 
-    The presenting hand was approved: reuse its EXACT ceramic palm,
-    graphite insert, and knuckle-plate proportions for microphone hand.
-    Only the fingers and thumb are reposed to hold the mic.
+    The presenting hand is unchanged. The microphone hand reuses the same
+    .220 x .111 x .184 pearl-ceramic shell but is rotated sideways. Its old
+    oversized graphite perimeter and overlapping knuckle plate were INNER
+    surfaces erroneously displayed outside the glove: never draw them for
+    the gripping pose.
     """
     h=Vector(center)
+    if gripping:
+        shell=orb("Hand_almoured_ceramic_palm_"+side,tuple(h),
+                  (.220,.111,.184),hand_shell,parent,48,32)
+        shell.rotation_euler.z=math.radians(88)
+        return shell
+
     orb("Hand_almoured_ceramic_palm_"+side,tuple(h),
         (.220,.111,.184),hand_shell,parent,48,32)
     orb("Palm graphite perimeter "+side,
@@ -617,7 +631,7 @@ for side,sign in [("L",-1),("R",1)]:
              (b[0]-.072,b[1]-.08,seam_z),
              (b[0]+.074,b[1]-.080,seam_z),
              .006,suit_highlight,shoulder,10)
-    hand_anchor=(1.425,-.552,1.691) if side=="R" else (-.613,-.822,1.701)
+    hand_anchor=(1.425,-.552,1.691) if side=="R" else (-.560,-.738,1.701)
     wrist_detail(side,c,hand_anchor,elbow)
     wrist=pivot("Wrist_"+side,c,elbow)
     wrists[side]=wrist
@@ -676,10 +690,11 @@ for side,sign in [("L",-1),("R",1)]:
         # Front is negative Y. Microphone shaft centre is roughly
         # x=-.46, y=-.94; its radius is .064. Hidden thumb geometry must
         # remain at y >= -.82 so it cannot project through the front shell.
-        # The identical master palm is offset toward the mic shaft.
-        # No separate blue badge is used behind the microphone.
-        palm=(-.613,-.822,1.701)
-        matching_ceramic_palm(side,palm,wrist,show_badge=False)
+        # Reuse the SAME master shell, but rotate it sideways so it wraps
+        # behind the microphone instead of showing a huge white oval.
+        # No graphite liner or extra plate sticking out toward the viewer.
+        palm=(-.560,-.738,1.701)
+        matching_ceramic_palm(side,palm,wrist,gripping=True)
 
         # Index, middle, ring and pinky have deliberately different lengths.
         # Index is slightly shorter than middle, ring slightly shorter, and
@@ -699,14 +714,15 @@ for side,sign in [("L",-1),("R",1)]:
             # The dark root is almost entirely inside the ceramic palm.
             orb("Finger L "+str(j)+" recessed graphite root",
                 (finger_base[0]+.012,finger_base[1]+.027,finger_base[2]),
-                (.019,.019,.021),knuckle_dark,wrist,24,14)
-            bend=(bend_x,-.977,z-.003)
-            final=(tip_x,-1.011,z-.029)
+                (.013,.014,.014),knuckle_dark,wrist,24,14)
+            bend=(bend_x,-.984,z-.003)
+            final=(tip_x,-1.021,z-.029)
             rot_link("Finger L "+str(j)+" curled white segment",
                      finger_base,bend,radius,hand_shell,kn)
+            # Hide inner graphite hinge INSIDE the overlapping white shells.
             orb("Finger L "+str(j)+" soft hinge",
-                (bend[0],bend[1]+.024,bend[2]),
-                (.020,.019,.021),knuckle_dark,kn,20,14)
+                (bend[0],bend[1]+.034,bend[2]),
+                (.013,.014,.013),knuckle_dark,kn,20,14)
             tip=pivot("Finger_L_"+str(j)+"_Tip",bend,kn)
             rot_link("Finger L "+str(j)+" curved porcelain fingertip",
                      bend,final,radius*.86,hand_shell,tip)
