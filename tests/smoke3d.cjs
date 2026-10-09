@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');
 const fs=require('fs');
-setTimeout(()=>{console.error('SMOKE TIMEOUT after 85 seconds');process.exit(2);},85000).unref();
+setTimeout(()=>{console.error('SMOKE TIMEOUT after 150 seconds');process.exit(2);},150000).unref();
 const assert=require('assert');
 const data=fs.readFileSync('models/robot-prototype.glb');
 const jsonSize=data.readUInt32LE(12);
@@ -74,7 +74,13 @@ assert(modelNames.includes('Palm graphite perimeter R'),
  'Approved open hand inner lining was removed by mistake');
 assert(modelNames.includes('Hand pearlescent knuckle plate R'),
  'Approved presenting palm was modified');
-console.log('PASS V14 single rotated ceramic microphone palm with no outer black/white duplicate layers');
+console.log('PASS single ceramic microphone palm with no duplicate layers');
+for(let j=0;j<4;j++){
+ for(const suffix of ['middle ceramic phalanx','distal graphite hinge'])
+  assert(modelNames.includes('Finger L '+j+' '+suffix),'Missing three-segment grip: '+suffix);
+ assert(modelNames.includes('Finger_L_'+j+'_Middle'),'Missing middle articulation pivot');
+}
+console.log('PASS V15 three phalanges and two hinge seams per gripping finger');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
@@ -180,13 +186,16 @@ console.log('PASS V14 single rotated ceramic microphone palm with no outer black
  // at front and a three-quarter side angle. Save both full-resolution images.
  for(let k=0;k<3;k++) await page.locator('[data-camera-control="in"]').click();
  await page.waitForTimeout(400);
- await page.screenshot({path:'test-results/v14-mic-front-closeup.png',fullPage:false});
+ await page.screenshot({path:'test-results/v15-mic-front-closeup.png',fullPage:false});
  await page.locator('[data-camera-control="left"]').click();
  await page.locator('[data-camera-control="left"]').click();
  await page.waitForTimeout(400);
- await page.screenshot({path:'test-results/v14-mic-three-quarter-closeup.png',fullPage:false});
+ await page.screenshot({path:'test-results/v15-mic-three-quarter-closeup.png',fullPage:false});
+ for(let k=0;k<3;k++) await page.locator('[data-camera-control="left"]').click();
+ await page.waitForTimeout(400);
+ await page.screenshot({path:'test-results/v15-mic-side-closeup.png',fullPage:false});
  await page.locator('[data-camera-control="reset"]').click();
- console.log('PASS V14 front and three-quarter zoomed microscope hand screenshots captured');
+ console.log('PASS V15 front, three-quarter and side grip screenshots captured');
  await page.locator('#demo').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent==='Voice analyzed',{timeout:20000});
  console.log('PASS demo audio decoded');

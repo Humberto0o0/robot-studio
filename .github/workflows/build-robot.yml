@@ -49,6 +49,25 @@ jobs:
           test -s models/robot-prototype.blend
           test -s models/robot-prototype.glb
 
+      - name: Test fresh model in mobile browser
+        run: |
+          mkdir -p /tmp/robot-playwright
+          cd /tmp/robot-playwright
+          npm init -y >/dev/null
+          npm install --silent playwright@1.56.1
+          cd "$GITHUB_WORKSPACE"
+          python3 -m http.server 8765 >/tmp/robot-http.log 2>&1 &
+          NODE_PATH=/tmp/robot-playwright/node_modules node tests/smoke3d.cjs
+
+      - name: Save grip inspection screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-grip-mobile-inspection
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Save downloadable 3D source files
         uses: actions/upload-artifact@v4
         with:

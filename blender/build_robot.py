@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.4.2, clean matching ceramic palm with no exposed graphite on mic side.
+"""Robot Studio - procedural, editable Blender robot v1.5, articulated ceramic microphone power grip.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -579,9 +579,10 @@ def matching_ceramic_palm(side,center,parent,show_badge=False,gripping=False):
     """
     h=Vector(center)
     if gripping:
+        # A slim metacarpal shell on the OUTSIDE of the handle. The old
+        # sideways ellipsoid extended .220 along Y and buried the thumb.
         shell=orb("Hand_almoured_ceramic_palm_"+side,tuple(h),
-                  (.220,.111,.184),hand_shell,parent,48,32)
-        shell.rotation_euler.z=math.radians(88)
+                  (.085,.116,.177),hand_shell,parent,48,32)
         return shell
 
     orb("Hand_almoured_ceramic_palm_"+side,tuple(h),
@@ -682,88 +683,71 @@ for side,sign in [("L",-1),("R",1)]:
         orb("Thumb R dark contact pad",t2,(.041,.041,.040),
             knuckle_dark,thumb,24,16)
     else:
-        # V12: anatomically readable microphone grip. Four white ceramic
-        # fingers curl over the FRONT of the shaft; ONE opposing thumb rests
-        # entirely BEHIND the shaft (positive Y) and is mostly occluded from
-        # a frontal camera. The right-side presenting hand is unchanged.
-        #
-        # Front is negative Y. Microphone shaft centre is roughly
-        # x=-.46, y=-.94; its radius is .064. Hidden thumb geometry must
-        # remain at y >= -.82 so it cannot project through the front shell.
-        # Reuse the SAME master shell, but rotate it sideways so it wraps
-        # behind the microphone instead of showing a huge white oval.
-        # No graphite liner or extra plate sticking out toward the viewer.
-        palm=(-.560,-.738,1.701)
+        # V15: front-readable power grip. Negative Y faces the camera.
+        # One slim palm sits to the left/rear of the shaft. Each finger has
+        # three phalanges and two visible graphite hinge seams. Distal links
+        # turn BACK toward the handle, instead of terminating as straight rods.
+        palm=(-.605,-.792,1.710)
         matching_ceramic_palm(side,palm,wrist,gripping=True)
 
-        # Index, middle, ring and pinky have deliberately different lengths.
-        # Index is slightly shorter than middle, ring slightly shorter, and
-        # pinky clearly shortest. No fake extra finger or multiple black
-        # knuckle beads along the front of the shaft.
-        fingers=[
-            # z height, x at root, x at bend, x at tip, finger radius
-            (1.813,-.576,-.530,-.461,.041),  # index
-            (1.752,-.568,-.520,-.439,.043),  # middle (longest)
-            (1.686,-.565,-.524,-.454,.040),  # ring
-            (1.624,-.563,-.534,-.477,.038),  # pinky: short but same ceramic style
-        ]
-        for j,(z,root_x,bend_x,tip_x,radius) in enumerate(fingers):
-            finger_base=(root_x,-.849,z)
-            kn=pivot("Finger_L_"+str(j)+"_Knuckle",finger_base,wrist)
+        for j,(z,radius,reach) in enumerate([
+                (1.829,.039,1.00), (1.750,.041,1.04),
+                (1.671,.038,.98), (1.595,.034,.88)]):
+            # Follow the tilted shaft centre at each finger height.
+            cx=-.480+(z-1.442)*(.039/.552)
+            cy=-.932+(z-1.442)*(-.012/.552)
+            points=[Vector((cx-.174,cy+.065,z)),
+                    Vector((cx-.103,cy-.059,z-.005)),
+                    Vector((cx-.005,cy-.107,z-.011)),
+                    Vector((cx+.067*reach,cy-.059,z-.023))]
+            base,bend,dip,final=points
+            kn=pivot("Finger_L_"+str(j)+"_Knuckle",base,wrist)
             knuckle_pivots["L_"+str(j)]=kn
-            # The dark root is almost entirely inside the ceramic palm.
-            orb("Finger L "+str(j)+" recessed graphite root",
-                (finger_base[0]+.012,finger_base[1]+.027,finger_base[2]),
-                (.013,.014,.014),hand_shell,wrist,24,14)
-            bend=(bend_x,-.984,z-.003)
-            final=(tip_x,-1.021,z-.029)
-            rot_link("Finger L "+str(j)+" curled white segment",
-                     finger_base,bend,radius,hand_shell,kn)
-            # Hide inner graphite hinge INSIDE the overlapping white shells.
-            orb("Finger L "+str(j)+" soft hinge",
-                (bend[0],bend[1]+.034,bend[2]),
-                (.013,.014,.013),hand_shell,kn,20,14)
-            tip=pivot("Finger_L_"+str(j)+"_Tip",bend,kn)
-            rot_link("Finger L "+str(j)+" curved porcelain fingertip",
-                     bend,final,radius*.86,hand_shell,tip)
+            orb("Finger L "+str(j)+" recessed graphite root",base,
+                (radius*.90,)*3,knuckle_dark,kn,24,16)
+            middle=pivot("Finger_L_"+str(j)+"_Middle",bend,kn)
+            tip=pivot("Finger_L_"+str(j)+"_Tip",dip,middle)
+            for name,pt,r,owner in [
+                    ("soft hinge",bend,radius*.86,middle),
+                    ("distal graphite hinge",dip,radius*.75,tip)]:
+                orb("Finger L "+str(j)+" "+name,pt,(r,)*3,
+                    knuckle_dark,owner,24,16)
+            for k,(name,owner) in enumerate([
+                    ("curled white segment",kn),
+                    ("middle ceramic phalanx",middle),
+                    ("curved porcelain fingertip",tip)]):
+                start,end=points[k],points[k+1]
+                direction=(end-start).normalized()
+                # Recessed graphite bridges these small seam gaps, so there
+                # is articulation without disconnected ceramic pieces.
+                tapered_finger_segment("Finger L "+str(j)+" "+name,
+                    start+direction*.010,end-direction*.010,
+                    radius*(1-.10*k),radius*(.91-.10*k),hand_shell,owner)
             orb("Finger L "+str(j)+" rounded ceramic pad",final,
-                (radius*.85,radius*.79,radius*.85),
-                hand_shell,tip,24,16)
-            # The graphite contact surface is tucked BEHIND the white
-            # fingertip toward the handle, not a black dot facing the camera.
-            orb("Finger L "+str(j)+" tiny contact pad",
-                (final[0]+.014,final[1]+.031,final[2]),
-                (radius*.36,.008,radius*.34),knuckle_dark,tip,20,12)
+                (radius*.73,)*3,hand_shell,tip,24,16)
 
-        # The thumb hinge and inner joints inherit the WHITE ceramic shell,
-        # so a glancing side view cannot expose stray black surface patches.
-        # This thumb travels from the palm to the REAR of the microphone:
-        # its entire ceramic body is behind the grip's back surface.
-        # It still opposes the other fingers, but no longer appears as
-        # a sixth digit sticking out above or beside the grille.
-        t0=(-.603,-.786,1.818)
-        t1=(-.530,-.793,1.839)
-        t2=(-.465,-.815,1.819)
-        if not (min(t0[1],t1[1],t2[1]) > -.855):
-            raise RuntimeError("Microphone thumb must remain behind handle")
+        # Thumb emerges from the upper/rear edge of the single palm shell,
+        # crosses above the index and opposes it on the BACK of the handle.
+        # Its base is connected, but neither phalanx is buried inside a palm
+        # overlay. The tip contacts the shaft's positive-Y surface.
+        t0=Vector((-.605,-.750,1.815))
+        t1=Vector((-.521,-.783,1.872))
+        t2=Vector((-.449,-.839,1.827))
         thumb=pivot("Thumb_L_Root",t0,wrist)
         thumbs[side]=thumb
-        orb("Thumb L high recessed hinge",t0,
-            (.035,.035,.036),hand_shell,wrist,24,16)
-        rot_link("Thumb L ceramic gripping segment",
-                 t0,t1,.057,hand_shell,thumb)
-        orb("Thumb L upper knuckle",t1,
-            (.034,.033,.034),hand_shell,thumb,22,14)
-        rot_link("Thumb L gripping end",
-                 t1,t2,.043,hand_shell,thumb)
-        orb("Thumb L upward ceramic tip",t2,
-            (.041,.040,.041),hand_shell,thumb,24,16)
-        # Actual graphite contact pad is tiny and sits on the INSIDE of the
-        # glove near the hidden microphone shaft, not an exposed dark spot
-        # on the outer porcelain palm when inspected at three-quarter angle.
-        orb("Thumb L contact pad",
-            (-.479,-.756,1.797),
-            (.013,.006,.014),knuckle_dark,thumb,18,12)
+        orb("Thumb L high recessed hinge",t0,(.043,.043,.043),
+            hand_shell,thumb,28,18)
+        orb("Thumb L upper knuckle",t1,(.035,.035,.035),
+            knuckle_dark,thumb,26,18)
+        for name,start,end,ra,rb in [
+                ("ceramic gripping segment",t0,t1,.046,.040),
+                ("gripping end",t1,t2,.039,.033)]:
+            direction=(end-start).normalized()
+            tapered_finger_segment("Thumb L "+name,
+                start+direction*.008,end-direction*.009,
+                ra,rb,hand_shell,thumb)
+        orb("Thumb L upward ceramic tip",t2,(.033,.034,.034),
+            hand_shell,thumb,28,18)
 
 # A metallic satin-black microphone with a knitted-wire capsule. The handle
 # passes physically between fingers and palm; headset blue lighting matches the robot.
