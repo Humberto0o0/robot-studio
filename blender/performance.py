@@ -48,7 +48,8 @@ def normalize(data):
     return dict(settings=settings,duration=duration,visemes=cues,words=sorted(words,key=lambda w:w['time']),
                 gestures=sorted(gestures,key=lambda g:g['time']),frames=sorted(frames,key=lambda f:f['t']),
                 headline=str(data.get('headline',data.get('story',{}).get('headline','')))[:180],
-                timingSource=data.get('timingSource','estimated'))
+                timingSource=data.get('timingSource','estimated'),
+                choreography='reference-study' if data.get('choreography')=='reference-study' else None)
 
 def pose_at(plan,t):
     current=None

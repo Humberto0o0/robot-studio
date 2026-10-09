@@ -13,7 +13,13 @@ const suitChecks=['Hand-tailored satin lapel L','Hand-tailored satin lapel R','T
 for(const name of suitChecks) assert(modelNames.includes(name),'New Blender suit object absent: '+name);
 assert(!modelNames.some(n=>/Cute eyebrow|Glass upper (left|right) reflection/.test(n)),'Duplicate eyebrow-like geometry still present');
 assert((gltf.materials||[]).some(m=>/Royal blue woven suit fabric/.test(m.name||'')),'Woven suit fabric material missing');
-console.log('PASS NEW SUIT geometry and single LED eye expression');
+console.log('PASS suit geometry and no duplicate legacy brows');
+for(const side of ['L','R']){
+ for(const name of ['Eye pupil ','Eye catch ','Expressive LED brow '])assert(modelNames.includes(name+side),'Missing expressive face '+name+side);
+ const eye=gltf.nodes.find(n=>n.name==='Eye emissive LED matrix '+side);
+ for(const shape of ['FRIENDLY','SURPRISED','BLINK','LOOK_RIGHT'])assert(gltf.meshes[eye.mesh].extras.targetNames.includes(shape),'Missing eye expression '+shape);
+}
+console.log('PASS V17 open LED eyes, gaze and expressive brows');
 const handChecks=[
  'Shoulder_L','Shoulder_R','Elbow_L','Elbow_R','Wrist_L','Wrist_R',
  'Tailored upper sleeve L','Tailored upper sleeve R',

@@ -10,6 +10,7 @@ import bpy
 from mathutils import Vector
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from performance import normalize,shape_at,pose_at,blink_at,SHAPES
+from reference_take import sample as reference_sample
 
 args=argparse.ArgumentParser()
 args.add_argument('--plan',required=True);args.add_argument('--audio',required=True)
@@ -30,7 +31,8 @@ for obj in bpy.data.objects:
     if obj.type=='MESH' and obj.data.shape_keys:obj.data.shape_keys.animation_data_clear()
 root=bpy.data.objects['Robot_Root'];head=bpy.data.objects['Head_Pivot']
 base={n:tuple(bpy.data.objects[n].rotation_euler) for n in ['Head_Pivot','Shoulder_R','Elbow_R','Shoulder_L','Elbow_L','Wrist_R']}
-base_root=tuple(root.location)
+base_root=tuple(root.location);base_root_rotation=tuple(root.rotation_euler)
+study=plan.get('choreography')=='reference-study'
 face=[o for o in bpy.data.objects if o.type=='MESH' and o.data.shape_keys]
 weights={name:0. for name in SHAPES}
 fps=opt.fps;num=math.ceil(plan['duration']*fps)
@@ -38,13 +40,18 @@ for frame in range(1,num+1):
     t=(frame-1)/fps;shape=shape_at(plan,t) if plan['settings']['mouth'] else 'REST';pose,pulse=pose_at(plan,t)
     if not plan['settings']['gestures']:pose,pulse='neutral',0
     for name in SHAPES:weights[name]+=(float(name==shape)-weights[name])*(1-math.exp(-24/fps))
-    blink=blink_at(t) if plan['settings']['blink'] else 0
+    take=reference_sample(t) if study else None
+    blink=(take['blink'] if take else blink_at(t)) if plan['settings']['blink'] else 0
     expression=plan['settings']['expression']
     attentive=1 if expression=='ATTENTIVE' else 0 if expression=='FRIENDLY' else 0 if pose in ('wave','present','open-hand') else .75
     for obj in face:
         for key in obj.data.shape_keys.key_blocks:
             if key.name=='Basis':continue
-            key.value=blink if key.name=='BLINK' else attentive*(1-blink) if key.name=='ATTENTIVE' else weights.get(key.name,0)
+            facial={'BLINK':blink,'ATTENTIVE':(0 if take else attentive)*(1-blink),
+                    'FRIENDLY':(take['friendly'] if take else .8 if expression=='FRIENDLY' else 0)*(1-blink),
+                    'SURPRISED':(take['surprised'] if take else 1 if expression=='SURPRISED' else 0)*(1-blink),
+                    'LOOK_RIGHT':(take['gaze'] if take else 0)*(1-blink)}
+            key.value=facial.get(key.name,weights.get(key.name,0))
             key.keyframe_insert('value',frame=frame)
     raised={'wave':-.72,'present':-.40,'open-hand':-.40,'point':-.56,'emphasis':-.30,'excited':-.40}.get(pose,0)*pulse*plan['settings']['energy']
     rotations={
@@ -54,6 +61,10 @@ for frame in range(1,num+1):
         'Wrist_R':(0,0,.13*pulse*math.sin(t*7) if pose=='wave' else 0),
     }
     if pose in ('nod','emphasis'):rotations['Head_Pivot']=(.05*math.sin(t*6)*pulse,0,0)
+    if take and plan['settings']['gestures']:
+        rotations=take['rotations']
+        root.rotation_euler=(base_root_rotation[0],base_root_rotation[1],base_root_rotation[2]+take['body_turn'])
+        root.keyframe_insert('rotation_euler',frame=frame)
     for name,delta in rotations.items():
         obj=bpy.data.objects[name];obj.rotation_euler=tuple(a+b for a,b in zip(base[name],delta));obj.keyframe_insert('rotation_euler',frame=frame)
     root.location=(base_root[0],base_root[1],base_root[2]+(.015*math.sin(t*1.65) if plan['settings']['float'] else 0));root.keyframe_insert('location',frame=frame)
@@ -77,11 +88,11 @@ area('Warm soft fill',(3,-3,3),280,4,(1,.88,.78))
 area('Cobalt rim',(1,2,4),450,3,(.22,.47,1))
 camdata=bpy.data.cameras.new('News portrait camera');cam=bpy.data.objects.new('News portrait camera',camdata);scene.collection.objects.link(cam)
 cam.location=(.15,-8.2,2.55);target=Vector((.15,-.05,1.85));cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
-camdata.type='ORTHO';camdata.ortho_scale=6.8;scene.camera=cam
+camdata.type='ORTHO';camdata.ortho_scale=6.1 if study else 6.8;scene.camera=cam
 scene.render.engine='BLENDER_EEVEE_NEXT' if bpy.app.version>=(4,2,0) else 'BLENDER_EEVEE'
 if hasattr(scene,'eevee'):
     scene.eevee.taa_render_samples=opt.samples
-    scene.eevee.use_gtao=True;scene.eevee.gtao_distance=3;scene.eevee.gtao_factor=1.1
+    scene.eevee.use_gtao=True;scene.eevee.gtao_distance=.35;scene.eevee.gtao_factor=.7
 scene.render.resolution_x=opt.width;scene.render.resolution_y=opt.height;scene.render.resolution_percentage=100
 scene.render.fps=fps;scene.frame_start=1;scene.frame_end=num
 scene.render.film_transparent=False

@@ -165,11 +165,11 @@ jobs:
           import json
           d=json.load(open('demo-output/video-info.json'))
           assert any(s['codec_type']=='audio' for s in d['streams'])
-          assert any(s.get('width')==360 and s.get('height')==640 for s in d['streams'])
-          assert 10<float(d['format']['duration'])<30
+          assert any(s.get('width')==540 and s.get('height')==960 for s in d['streams'])
+          assert 7<float(d['format']['duration'])<8
           print('PASS actual Blender portrait video with narration',d['format']['duration'])
           PY
-          for t in 1 5 9 13; do
+          for t in 0.5 2.3 4.2 6.5; do
             ffmpeg -y -loglevel error -ss "$t" -i demo-output/robot-speaking-demo.mp4 -frames:v 1 "demo-output/frame-$t.png"
           done
       - uses: actions/upload-artifact@v4

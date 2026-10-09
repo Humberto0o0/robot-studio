@@ -135,7 +135,7 @@ def poly_mesh(name, xyz, faces, material, parent):
 # authentic glTF textures; no flat reference PNGs or box-shaped lapel primitives.
 shirt=mat("Silky ivory shirt",(.94,.975,1),.025,.30)
 suit_lining=mat("Jacket navy shadow piping",(.008,.025,.10),.11,.45)
-suit_highlight=mat("Cobalt satin lapel facing",(.024,.24,.79),.25,.31)
+suit_highlight=mat("Cobalt satin lapel facing",(.012,.10,.48),.06,.44)
 fabric_shadow=mat("Blue jacket edge shadow",(.014,.078,.43),.13,.53)
 metal_button=mat("Antique graphite metal button",(.12,.15,.21),.82,.19)
 button_glint=mat("Button champagne rim",(.54,.35,.14),.65,.19)
@@ -167,13 +167,12 @@ def weave_image(name, normal=False, size=256):
 
 fabric_color=weave_image("Cobalt basket weave albedo")
 fabric_normal=weave_image("Cobalt basket weave tangent normal",True)
-woven=mat("Royal blue woven suit fabric",(.021,.25,.92),.20,.34)
+woven=mat("Royal blue woven suit fabric",(.021,.25,.92),.03,.49)
 fabric_bsdf=woven.node_tree.nodes.get("Principled BSDF")
-# Polished suit lacquer: visible broad highlights like the ceramic helmet, but
-# with micro-fabric weave instead of mirror-plastic. Metallic uses PBR workflow.
+# Soft cloth response distinguishes the jacket from the ceramic helmet.
 if "Anisotropic IOR Level" in fabric_bsdf.inputs:
     fabric_bsdf.inputs["Anisotropic IOR Level"].default_value=.17
-if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.35
+if "Coat Weight" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Weight"].default_value=.08
 if "Coat Roughness" in fabric_bsdf.inputs: fabric_bsdf.inputs["Coat Roughness"].default_value=.12
 tex=woven.node_tree.nodes.new("ShaderNodeTexImage")
 tex.name="PBR Fabric Base Color"
@@ -406,12 +405,69 @@ def matrix_pixels(name,cx,base,width,outer,inner,parent):
             faces.append((q,q+1,q+2,q+3))
     return poly_mesh(name,verts,faces,led_px,parent)
 
+# V17 open LED eyes: projected annular irises, inset pupils, catchlights and
+# independent brows. All parts remain real geometry with identical morph topology.
+pupil_mat=mat("LED pupil deep ink",(.001,.004,.010),0,.65)
+catch_mat=mat("LED eye catchlight",(.30,.88,1),0,.4,1.4)
+def eye_mesh(name,points,faces,material,eye,cx,part):
+    obj=poly_mesh(name,points,faces,material,eye)
+    obj.shape_key_add(name="Basis")
+    inv=eye.matrix_world.inverted()
+    for expression in ("ATTENTIVE","FRIENDLY","SURPRISED","BLINK","LOOK_LEFT","LOOK_RIGHT"):
+        key=obj.shape_key_add(name=expression)
+        for dest,xyz in zip(key.data,points):
+            x,y,z=xyz
+            offset=visor_depth(x,z,0)-y
+            if part=="brow":
+                if expression=="FRIENDLY":z+=.025
+                elif expression=="SURPRISED":z+=.040
+                elif expression=="ATTENTIVE":z-=.012
+                elif expression=="BLINK":z-=.012
+            else:
+                if expression=="FRIENDLY":z=2.71+(z-2.71)*.72
+                elif expression=="ATTENTIVE":z=2.71+(z-2.71)*.91
+                elif expression=="SURPRISED":z=2.71+(z-2.71)*1.09
+                elif expression=="BLINK":z=2.71+(z-2.71)*.035
+                elif expression in ("LOOK_LEFT","LOOK_RIGHT"):
+                    x+=-.035 if expression=="LOOK_LEFT" else .035
+            dest.co=inv @ Vector((x,visor_depth(x,z,offset),z))
+    return obj
+
 for sign,label in [(-1,"L"),(1,"R")]:
-    cx=sign*.395
-    eye=pivot("Eye_"+label,(cx,visor_depth(cx,2.74,.02),2.73),head)
-    curved_strip("Eye diffuser arc "+label,cx,2.675,.267,.193,.047,led_bg,eye,.035)
-    matrix_pixels("Eye emissive LED matrix "+label,cx,2.675,.265,.193,.145,eye)
-    # No separate brow mesh: LED arcs provide the single cute eye expression.
+    cx=sign*.355;zc=2.71
+    eye=pivot("Eye_"+label,(cx,visor_depth(cx,zc,.02),zc),head)
+    points=[];faces=[];count=64
+    for i in range(count):
+        a=2*math.pi*i/count
+        for rx,rz in ((.231,.207),(.119,.128)):
+            x=cx+rx*math.cos(a);z=zc+rz*math.sin(a)
+            points.append((x,visor_depth(x,z,.039),z))
+        j=2*i;k=2*((i+1)%count);faces.append((j,k,k+1,j+1))
+    eye_mesh("Eye diffuser arc "+label,points,faces,led_bg,eye,cx,"iris")
+    points=[];faces=[]
+    for ix in range(-16,17):
+        for iz in range(-15,16):
+            x=ix*.014;z=iz*.014
+            if (x/.224)**2+(z/.201)**2>1 or (x/.124)**2+(z/.133)**2<1:continue
+            q=len(points);d=.0046
+            for dx,dz in ((-d,-d),(d,-d),(d,d),(-d,d)):
+                xx=cx+x+dx;zz=zc+z+dz;points.append((xx,visor_depth(xx,zz,.047),zz))
+            faces.append((q,q+1,q+2,q+3))
+    eye_mesh("Eye emissive LED matrix "+label,points,faces,led_px,eye,cx,"iris")
+    for part,rx,rz,ox,oz,material in (("pupil",.116,.125,0,0,pupil_mat),("catch",.031,.030,.043,.065,catch_mat)):
+        points=[(cx+ox,visor_depth(cx+ox,zc+oz,.060),zc+oz)]
+        for i in range(count):
+            a=2*math.pi*i/count;x=cx+ox+rx*math.cos(a);z=zc+oz+rz*math.sin(a)
+            points.append((x,visor_depth(x,z,.060 if part=="pupil" else .069),z))
+        faces=[(0,1+i,1+(i+1)%count) for i in range(count)]
+        eye_mesh("Eye "+part+" "+label,points,faces,material,eye,cx,part)
+    points=[];faces=[]
+    for i in range(25):
+        u=i/24;x=cx+(u-.5)*.34
+        for z in (2.980+.028*math.sin(u*math.pi),2.961+.028*math.sin(u*math.pi)):
+            points.append((x,visor_depth(x,z,.043),z))
+        if i:faces.append((2*i-2,2*i,2*i+1,2*i-1))
+    eye_mesh("Expressive LED brow "+label,points,faces,led_px,eye,cx,"brow")
 
 # V16 continuous-topology speech rig. Basis is a closed, friendly smile.
 # Shape keys export as named glTF morph targets and are shared by the browser
@@ -471,24 +527,6 @@ for part,name,material in [
         key=obj.shape_key_add(name=shape)
         for point,xyz in zip(key.data,mouth_points(shape,part)):
             point.co=inv @ Vector(xyz)
-
-# Shape-key eye expressions preserve the established smiling LED identity.
-# Blink uses mesh-local Z (Blender up), avoiding glTF object-axis ambiguity.
-for side in ("L","R"):
-    eye=bpy.data.objects["Eye_"+side]
-    for obj in list(eye.children):
-        if obj.type!="MESH":continue
-        obj.shape_key_add(name="Basis")
-        for expression in ("ATTENTIVE","BLINK"):
-            key=obj.shape_key_add(name=expression)
-            for p,base in zip(key.data,obj.data.vertices):
-                world=eye.matrix_world @ base.co
-                if expression=="ATTENTIVE":
-                    # Lower the arch without disconnecting the pixel matrix.
-                    world.z=2.735+(world.z-2.735)*.64
-                else:
-                    world.z=2.735+(world.z-2.735)*.055
-                p.co=eye.matrix_world.inverted() @ world
 
 # V4: sculpted sleeves and articulated robot hands.
 # Everything is true 3D and follows named shoulder / elbow / wrist bones.

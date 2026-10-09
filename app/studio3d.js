@@ -56,7 +56,7 @@ function findRig(model){
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
- new GLTFLoader().load('./models/robot-prototype.glb?v=25',
+ new GLTFLoader().load('./models/robot-prototype.glb?v=26',
   gltf=>{findRig(gltf.scene);state.ready=true;updateControls();},
   undefined,
   err=>{$('status').textContent='3D model failed';$('liveAction').textContent='Could not load the .glb model. Check connection or reload. '+String(err?.message||err);}
@@ -224,7 +224,7 @@ function animate3D(t,dt,loud){
   (intro==='wave'||intro==='present'?0:.75);
  for(const mesh of faceMeshes){
   for(const [key,index] of Object.entries(mesh.morphTargetDictionary)){
-   const target=key==='BLINK'?blink:key==='ATTENTIVE'?attentive*(1-blink):key===shape?1:0;
+   const target=key==='BLINK'?blink:key==='ATTENTIVE'?attentive*(1-blink):key==='FRIENDLY'?(state.expression==='FRIENDLY'?.8:0)*(1-blink):key==='SURPRISED'?(state.expression==='SURPRISED'?1:0)*(1-blink):key===shape?1:0;
    mesh.morphTargetInfluences[index]=mix(mesh.morphTargetInfluences[index],target,clamp(dt*24,0,1));
   }
  }
