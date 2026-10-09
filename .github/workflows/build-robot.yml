@@ -94,13 +94,23 @@ jobs:
         run: |
           git config user.name "robot-studio-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add models/robot-prototype.glb models/robot-prototype.blend
-          git diff --cached --quiet || git commit -m "Build robot 3D assets from Blender script"
-          # Other studio edits may arrive while Blender is rendering on the runner.
-          # Rebase binary model commit onto latest main instead of force-pushing.
+          BUILT_SOURCE=$(git rev-parse HEAD:blender/build_robot.py)
+          mkdir -p /tmp/robot-built-assets
+          cp models/robot-prototype.glb models/robot-prototype.blend /tmp/robot-built-assets/
+          # Generated binary assets cannot be rebased reliably. Reapply only
+          # these two files to the latest source, with a stale-source guard.
+          # This reset is confined to the disposable Actions checkout.
           for attempt in 1 2 3 4 5; do
             git fetch origin main
-            git rebase origin/main
+            LATEST_SOURCE=$(git rev-parse origin/main:blender/build_robot.py)
+            if [ "$BUILT_SOURCE" != "$LATEST_SOURCE" ]; then
+              echo "A newer Blender source exists; refusing to publish stale assets"
+              exit 1
+            fi
+            git reset --hard origin/main
+            cp /tmp/robot-built-assets/robot-prototype.glb /tmp/robot-built-assets/robot-prototype.blend models/
+            git add models/robot-prototype.glb models/robot-prototype.blend
+            git diff --cached --quiet || git commit -m "Build robot 3D assets from Blender script"
             if git push origin HEAD:main; then
               echo "Successfully published fresh Blender model"
               exit 0
