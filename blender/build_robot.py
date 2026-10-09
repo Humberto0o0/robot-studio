@@ -102,7 +102,7 @@ shell = mat("Ceramic pearl helmet",(.94,.973,1.0),.18,.13)
 trim = mat("Deep navy visor gasket",(.009,.025,.059),.43,.20)
 edge = mat("Iridescent cobalt anodized trim",(.025,.20,.95),.56,.14)
 led_bg = mat("Blue LED diffuser",(.012,.17,.64),.08,.23,.85)
-led_px = mat("Cyan LED pixel matrix",(.006,.50,.93),.02,.20,2.35)
+led_px = mat("Cyan LED pixel matrix",(.005,.32,.95),.02,.20,1.25)
 mouth_dark = mat("Warm shaded smile cavity",(.022,.004,.009),.03,.42)
 tongue = mat("Coral pink mouth tongue",(.53,.075,.095),.02,.38)
 mouth_border = mat("Inner mouth rim",(.025,.012,.026),.12,.23)
@@ -441,7 +441,7 @@ for sign,label in [(-1,"L"),(1,"R")]:
         a=2*math.pi*i/count
         for rx,rz in ((.231,.207),(.119,.128)):
             x=cx+rx*math.cos(a);z=zc+rz*math.sin(a)
-            points.append((x,visor_depth(x,z,.039),z))
+            points.append((x,visor_depth(x,z,.006),z))
         j=2*i;k=2*((i+1)%count);faces.append((j,k,k+1,j+1))
     eye_mesh("Eye diffuser arc "+label,points,faces,led_bg,eye,cx,"iris")
     points=[];faces=[]
@@ -451,21 +451,21 @@ for sign,label in [(-1,"L"),(1,"R")]:
             if (x/.224)**2+(z/.201)**2>1 or (x/.124)**2+(z/.133)**2<1:continue
             q=len(points);d=.0046
             for dx,dz in ((-d,-d),(d,-d),(d,d),(-d,d)):
-                xx=cx+x+dx;zz=zc+z+dz;points.append((xx,visor_depth(xx,zz,.047),zz))
+                xx=cx+x+dx;zz=zc+z+dz;points.append((xx,visor_depth(xx,zz,.010),zz))
             faces.append((q,q+1,q+2,q+3))
     eye_mesh("Eye emissive LED matrix "+label,points,faces,led_px,eye,cx,"iris")
     for part,rx,rz,ox,oz,material in (("pupil",.116,.125,0,0,pupil_mat),("catch",.031,.030,.043,.065,catch_mat)):
-        points=[(cx+ox,visor_depth(cx+ox,zc+oz,.060),zc+oz)]
+        points=[(cx+ox,visor_depth(cx+ox,zc+oz,.012 if part=="pupil" else .016),zc+oz)]
         for i in range(count):
             a=2*math.pi*i/count;x=cx+ox+rx*math.cos(a);z=zc+oz+rz*math.sin(a)
-            points.append((x,visor_depth(x,z,.060 if part=="pupil" else .069),z))
+            points.append((x,visor_depth(x,z,.012 if part=="pupil" else .016),z))
         faces=[(0,1+i,1+(i+1)%count) for i in range(count)]
         eye_mesh("Eye "+part+" "+label,points,faces,material,eye,cx,part)
     points=[];faces=[]
     for i in range(25):
         u=i/24;x=cx+(u-.5)*.34
-        for z in (2.980+.028*math.sin(u*math.pi),2.961+.028*math.sin(u*math.pi)):
-            points.append((x,visor_depth(x,z,.043),z))
+        for z in (2.989+.028*math.sin(u*math.pi),2.955+.028*math.sin(u*math.pi)):
+            points.append((x,visor_depth(x,z,.010),z))
         if i:faces.append((2*i-2,2*i,2*i+1,2*i-1))
     eye_mesh("Expressive LED brow "+label,points,faces,led_px,eye,cx,"brow")
 
