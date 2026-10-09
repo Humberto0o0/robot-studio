@@ -2,6 +2,8 @@
 
 ## Current 3D work
 
+[Open the live studio](https://humberto0o0.github.io/robot-studio/) · [Watch the speaking demo](https://humberto0o0.github.io/robot-studio/demo.html)
+
 The live studio uses the procedural Blender robot with articulated hands, eight speech/expression morphs, eye expressions and audio-driven direction. See [the 3D performance guide](docs/3d-performance.md) for timing imports, browser controls, the optional Blender rendering API and the diagnostic video workflow. The older 2D renderer below remains available as a legacy path.
 
 Robot Studio is an audio-driven animation and rendering system for a recurring robot news host.
@@ -12,7 +14,7 @@ The long-term goal is:
 
 ## What works now
 
-### V5 browser studio
+### Browser studio
 
 The root `index.html` is a mobile-first, self-contained studio designed for iPhone and desktop.
 
@@ -30,7 +32,7 @@ It can:
 - record the browser canvas where MediaRecorder/canvas capture are supported
 - install as a PWA/Home Screen web app once GitHub Pages is enabled
 
-The polished master robot is currently a **bridge rig**: the body artwork is one image while mouth, eye reactions, camera and whole-character movement are layered procedurally.
+The current studio renders the actual GLB robot. The older 2D bridge rig remains in the legacy renderer.
 
 ### Bot-facing API
 

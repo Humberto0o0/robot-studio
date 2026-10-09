@@ -55,6 +55,8 @@ The compositor adds narration and captions. Story-image composition is still imp
 
 ## Reproducible diagnostic clip
 
+Watch the [reviewed speaking demo](../demo.html). The video and three mobile inspection views are stored in `docs/demo/`, so they remain available after Actions artifacts expire.
+
 Run **Build 3D Robot with Blender** manually in GitHub Actions, or use a commit message containing `[demo]`. After model/mobile validation, a separate job renders a short spoken test with the actual robot and uploads `robot-speaking-demo`.
 
 The diagnostic voice is eSpeak, not the intended brand voice. The clip uses 360×640 at 12 fps for economical software-rendered inspection. The renderer supports larger presets, but full-HD offline performance is not established by this draft test. Mobile browser recording remains separately tested at 1080×1920.
