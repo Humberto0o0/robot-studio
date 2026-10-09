@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.4.1, clean rotated grip shell with thumb contact fully recessed.
+"""Robot Studio - procedural, editable Blender robot v1.4.2, clean matching ceramic palm with no exposed graphite on mic side.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -714,7 +714,7 @@ for side,sign in [("L",-1),("R",1)]:
             # The dark root is almost entirely inside the ceramic palm.
             orb("Finger L "+str(j)+" recessed graphite root",
                 (finger_base[0]+.012,finger_base[1]+.027,finger_base[2]),
-                (.013,.014,.014),knuckle_dark,wrist,24,14)
+                (.013,.014,.014),hand_shell,wrist,24,14)
             bend=(bend_x,-.984,z-.003)
             final=(tip_x,-1.021,z-.029)
             rot_link("Finger L "+str(j)+" curled white segment",
@@ -722,7 +722,7 @@ for side,sign in [("L",-1),("R",1)]:
             # Hide inner graphite hinge INSIDE the overlapping white shells.
             orb("Finger L "+str(j)+" soft hinge",
                 (bend[0],bend[1]+.034,bend[2]),
-                (.013,.014,.013),knuckle_dark,kn,20,14)
+                (.013,.014,.013),hand_shell,kn,20,14)
             tip=pivot("Finger_L_"+str(j)+"_Tip",bend,kn)
             rot_link("Finger L "+str(j)+" curved porcelain fingertip",
                      bend,final,radius*.86,hand_shell,tip)
@@ -735,6 +735,8 @@ for side,sign in [("L",-1),("R",1)]:
                 (final[0]+.014,final[1]+.031,final[2]),
                 (radius*.36,.008,radius*.34),knuckle_dark,tip,20,12)
 
+        # The thumb hinge and inner joints inherit the WHITE ceramic shell,
+        # so a glancing side view cannot expose stray black surface patches.
         # This thumb travels from the palm to the REAR of the microphone:
         # its entire ceramic body is behind the grip's back surface.
         # It still opposes the other fingers, but no longer appears as
@@ -747,11 +749,11 @@ for side,sign in [("L",-1),("R",1)]:
         thumb=pivot("Thumb_L_Root",t0,wrist)
         thumbs[side]=thumb
         orb("Thumb L high recessed hinge",t0,
-            (.043,.042,.043),knuckle_dark,wrist,24,16)
+            (.035,.035,.036),hand_shell,wrist,24,16)
         rot_link("Thumb L ceramic gripping segment",
                  t0,t1,.057,hand_shell,thumb)
         orb("Thumb L upper knuckle",t1,
-            (.039,.038,.039),knuckle_dark,thumb,22,14)
+            (.034,.033,.034),hand_shell,thumb,22,14)
         rot_link("Thumb L gripping end",
                  t1,t2,.043,hand_shell,thumb)
         orb("Thumb L upward ceramic tip",t2,
