@@ -64,6 +64,17 @@ assert(modelNames.includes('Thumb L high recessed hinge'),'Microphone thumb is n
 assert(modelNames.filter(n=>/^Finger L [0-3] recessed graphite root$/.test(n)).length===4,
  'Must have exactly four articulated microphone fingers');
 console.log('PASS V11 matched porcelain fingers and high opposable microphone thumb');
+assert(modelNames.includes('Hand_almoured_ceramic_palm_L'),'Mirrored gripper porcelain shell missing');
+assert(modelNames.includes('Hand_almoured_ceramic_palm_R'),'Original open hand shell missing');
+assert(!modelNames.includes('Palm graphite perimeter L'),
+ 'Mic palm inner black insert is still visible as exterior geometry');
+assert(!modelNames.includes('Hand pearlescent knuckle plate L'),
+ 'Mic palm extra knuckle shell is still layered outside the glove');
+assert(modelNames.includes('Palm graphite perimeter R'),
+ 'Approved open hand inner lining was removed by mistake');
+assert(modelNames.includes('Hand pearlescent knuckle plate R'),
+ 'Approved presenting palm was modified');
+console.log('PASS V14 single rotated ceramic microphone palm with no outer black/white duplicate layers');
 
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox','--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
@@ -165,6 +176,17 @@ console.log('PASS V11 matched porcelain fingers and high opposable microphone th
  await page.waitForTimeout(90);
  console.log('PASS top-down iPhone camera angle, top button, vertical drag and reset');
  console.log('PASS iPhone drag rotate, vertical tilt, pinch zoom, zoom buttons and reset');
+ // Compare the NEW microphone hand under the exact same virtual camera
+ // at front and a three-quarter side angle. Save both full-resolution images.
+ for(let k=0;k<3;k++) await page.locator('[data-camera-control="in"]').click();
+ await page.waitForTimeout(400);
+ await page.screenshot({path:'test-results/v14-mic-front-closeup.png',fullPage:false});
+ await page.locator('[data-camera-control="left"]').click();
+ await page.locator('[data-camera-control="left"]').click();
+ await page.waitForTimeout(400);
+ await page.screenshot({path:'test-results/v14-mic-three-quarter-closeup.png',fullPage:false});
+ await page.locator('[data-camera-control="reset"]').click();
+ console.log('PASS V14 front and three-quarter zoomed microscope hand screenshots captured');
  await page.locator('#demo').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent==='Voice analyzed',{timeout:20000});
  console.log('PASS demo audio decoded');
