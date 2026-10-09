@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.2.1, smooth microphone finger ceramics and hidden pads.
+"""Robot Studio - procedural, editable Blender robot v1.3, shared ceramic palm on both hands and recessed microphone cuff.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -533,8 +533,12 @@ def wrist_detail(side,center,hand_position,elbow):
     # and by the hand, visible only as a clean narrow line.
     orb("Cuff slim porcelain transition "+side,
         tuple(c+travel*.87),(.119,.110,.110),cuff_white,elbow,36,22)
+    # On the microphone wrist the previous oversized blue trim projected
+    # directly THROUGH the white palm. Recess it inside the sleeve.
+    trim_t=.47 if side=="L" else .77
+    trim_dims=(.082,.076,.082) if side=="L" else (.128,.114,.115)
     orb("Cuff thin cobalt trim "+side,
-        tuple(c+travel*.77),(.128,.114,.115),cuff_blue,elbow,36,22)
+        tuple(c+travel*trim_t),trim_dims,cuff_blue,elbow,36,22)
     # This small socket is wholly behind the white wrist; it preserves the
     # believable robotic joint without displaying a large black gap.
     orb("Wrist hidden mechanical socket "+side,
@@ -557,6 +561,27 @@ def tapered_finger_segment(name,start,end,radius_a,radius_b,material,parent):
     bevel.segments=3
     obj.modifiers.new("Rounded highlights","WEIGHTED_NORMAL")
     return finish(obj,material,parent)
+
+def matching_ceramic_palm(side,center,parent,show_badge=False):
+    """One master 3D palm design for both arms.
+
+    The presenting hand was approved: reuse its EXACT ceramic palm,
+    graphite insert, and knuckle-plate proportions for microphone hand.
+    Only the fingers and thumb are reposed to hold the mic.
+    """
+    h=Vector(center)
+    orb("Hand_almoured_ceramic_palm_"+side,tuple(h),
+        (.220,.111,.184),hand_shell,parent,48,32)
+    orb("Palm graphite perimeter "+side,
+        tuple(h+Vector((0,.053,0))),(.202,.081,.162),
+        knuckle_dark,parent,40,28)
+    orb("Hand pearlescent knuckle plate "+side,
+        tuple(h+Vector((0,-.086,.045))),(.194,.032,.111),
+        hand_shell,parent,44,24)
+    if show_badge:
+        orb("Palm small engraved cobalt badge "+side,
+            tuple(h+Vector((0,-.117,-.025))),(.063,.009,.033),
+            cuff_blue,parent,32,18)
 
 shoulders={}
 elbows={}
@@ -592,7 +617,7 @@ for side,sign in [("L",-1),("R",1)]:
              (b[0]-.072,b[1]-.08,seam_z),
              (b[0]+.074,b[1]-.080,seam_z),
              .006,suit_highlight,shoulder,10)
-    hand_anchor=(1.425,-.552,1.691) if side=="R" else (-.613,-.819,1.696)
+    hand_anchor=(1.425,-.552,1.691) if side=="R" else (-.613,-.822,1.701)
     wrist_detail(side,c,hand_anchor,elbow)
     wrist=pivot("Wrist_"+side,c,elbow)
     wrists[side]=wrist
@@ -603,17 +628,7 @@ for side,sign in [("L",-1),("R",1)]:
         # Open palm faces viewer (-Y). Knuckles project UP rather than sideways.
         # The four fingers are spread across X, tips at upper Z, thumb points inward.
         hand=(1.425,-.552,1.691)
-        orb("Hand_almoured_ceramic_palm_"+side,hand,(.220,.111,.184),
-            hand_shell,wrist,48,32)
-        orb("Palm graphite perimeter "+side,
-            (hand[0],hand[1]+.053,hand[2]),
-            (.202,.081,.162),knuckle_dark,wrist,40,28)
-        orb("Hand pearlescent knuckle plate "+side,
-            (hand[0],hand[1]-.086,hand[2]+.045),
-            (.194,.032,.111),hand_shell,wrist,44,24)
-        orb("Palm small engraved cobalt badge "+side,
-            (hand[0],hand[1]-.117,hand[2]-.025),
-            (.063,.009,.033),cuff_blue,wrist,32,18)
+        matching_ceramic_palm(side,hand,wrist,show_badge=True)
 
         for j in range(4):
             # Leftmost finger leans in, rightmost angles out, as a natural wave.
@@ -661,15 +676,10 @@ for side,sign in [("L",-1),("R",1)]:
         # Front is negative Y. Microphone shaft centre is roughly
         # x=-.46, y=-.94; its radius is .064. Hidden thumb geometry must
         # remain at y >= -.82 so it cannot project through the front shell.
-        palm=(-.601,-.806,1.709)
-        orb("Hand_almoured_ceramic_palm_"+side,palm,
-            (.155,.104,.174),hand_shell,wrist,48,32)
-        orb("Palm graphite perimeter "+side,
-            (palm[0]-.020,palm[1]+.047,palm[2]),
-            (.132,.056,.152),knuckle_dark,wrist,40,26)
-        orb("Hand pearlescent knuckle plate "+side,
-            (palm[0],palm[1]-.082,palm[2]+.017),
-            (.129,.024,.132),hand_shell,wrist,42,24)
+        # The identical master palm is offset toward the mic shaft.
+        # No separate blue badge is used behind the microphone.
+        palm=(-.613,-.822,1.701)
+        matching_ceramic_palm(side,palm,wrist,show_badge=False)
 
         # Index, middle, ring and pinky have deliberately different lengths.
         # Index is slightly shorter than middle, ring slightly shorter, and
@@ -680,7 +690,7 @@ for side,sign in [("L",-1),("R",1)]:
             (1.813,-.576,-.530,-.461,.041),  # index
             (1.752,-.568,-.520,-.439,.043),  # middle (longest)
             (1.686,-.565,-.524,-.454,.040),  # ring
-            (1.624,-.563,-.534,-.477,.034),  # pinky (shortest)
+            (1.624,-.563,-.534,-.477,.038),  # pinky: short but same ceramic style
         ]
         for j,(z,root_x,bend_x,tip_x,radius) in enumerate(fingers):
             finger_base=(root_x,-.849,z)
@@ -721,15 +731,15 @@ for side,sign in [("L",-1),("R",1)]:
         thumb=pivot("Thumb_L_Root",t0,wrist)
         thumbs[side]=thumb
         orb("Thumb L high recessed hinge",t0,
-            (.033,.034,.034),knuckle_dark,wrist,24,16)
+            (.043,.042,.043),knuckle_dark,wrist,24,16)
         rot_link("Thumb L ceramic gripping segment",
-                 t0,t1,.044,hand_shell,thumb)
+                 t0,t1,.057,hand_shell,thumb)
         orb("Thumb L upper knuckle",t1,
-            (.029,.030,.029),knuckle_dark,thumb,22,14)
+            (.039,.038,.039),knuckle_dark,thumb,22,14)
         rot_link("Thumb L gripping end",
-                 t1,t2,.037,hand_shell,thumb)
+                 t1,t2,.043,hand_shell,thumb)
         orb("Thumb L upward ceramic tip",t2,
-            (.031,.031,.031),hand_shell,thumb,24,16)
+            (.041,.040,.041),hand_shell,thumb,24,16)
         orb("Thumb L contact pad",
             (t2[0],t2[1]-.017,t2[2]),
             (.020,.008,.020),knuckle_dark,thumb,18,12)
