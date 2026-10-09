@@ -1,4 +1,4 @@
-"""Robot Studio - procedural, editable Blender robot v1.4, rotated master hand shell and concealed microphone grip layers.
+"""Robot Studio - procedural, editable Blender robot v1.4.1, clean rotated grip shell with thumb contact fully recessed.
 Run: blender --background --python blender/build_robot.py
 This is a geometry/rigging proof of concept, not the final art-quality character.
 """
@@ -756,9 +756,12 @@ for side,sign in [("L",-1),("R",1)]:
                  t1,t2,.043,hand_shell,thumb)
         orb("Thumb L upward ceramic tip",t2,
             (.041,.040,.041),hand_shell,thumb,24,16)
+        # Actual graphite contact pad is tiny and sits on the INSIDE of the
+        # glove near the hidden microphone shaft, not an exposed dark spot
+        # on the outer porcelain palm when inspected at three-quarter angle.
         orb("Thumb L contact pad",
-            (t2[0],t2[1]-.017,t2[2]),
-            (.020,.008,.020),knuckle_dark,thumb,18,12)
+            (-.479,-.756,1.797),
+            (.013,.006,.014),knuckle_dark,thumb,18,12)
 
 # A metallic satin-black microphone with a knitted-wire capsule. The handle
 # passes physically between fingers and palm; headset blue lighting matches the robot.
