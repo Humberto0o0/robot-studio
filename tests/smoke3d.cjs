@@ -87,7 +87,7 @@ for(let j=0;j<4;j++){
  assert(modelNames.includes('Finger_L_'+j+'_Middle'),'Missing middle articulation pivot');
 }
 console.log('PASS V15 three phalanges and two hinge seams per gripping finger');
-for(const name of ['Mouth rim precision outline','Mouth open burgundy recess','Mouth warm coral tongue']){
+for(const name of ['Mouth rim precision outline','Mouth open burgundy recess','Mouth warm coral tongue','Mouth upper ivory smile']){
  const node=gltf.nodes.find(n=>n.name===name),mesh=gltf.meshes[node.mesh];
  for(const shape of ['A','E','O','U','M','F','S','SMILE'])
   assert(mesh.extras?.targetNames?.includes(shape),'Missing exported speech shape '+name+' / '+shape);
@@ -216,12 +216,12 @@ console.log('PASS exported speech and eye morph targets, batched microphone gril
  console.log('PASS V15 front, three-quarter and side grip screenshots captured');
  await page.locator('[data-tab="direct"]').click();
  await page.locator('details').evaluate(el=>el.open=true);
- for(const shape of ['REST','A','O','M']){
+ for(const shape of ['REST','A','O','M','SMILE']){
   await page.locator('#mouthShape').selectOption(shape);
   await page.waitForFunction(s=>document.getElementById('stage').dataset.mouthShape===s,shape);
   assert(Number(await stage.getAttribute('data-face-morph-count'))>=7,'Face rig not connected');
   await page.waitForTimeout(180);
-  if(shape==='A'||shape==='REST')await stage.screenshot({path:'test-results/v16-face-'+shape+'.png'});
+  await stage.screenshot({path:'test-results/v16-face-'+shape+'.png'});
  }
  await page.locator('#mouthShape').selectOption('AUTO');
  await page.locator('[data-tab="create"]').click();

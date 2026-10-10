@@ -351,10 +351,14 @@ orb("Helmet / pearl white ceramic",(0,0,2.65),(1.052,.824,.82),shell,head,64,44)
 VISOR_TOP_EXPONENT=3.2
 VISOR_BOTTOM_EXPONENT=4.5
 VISOR_WIDTH=.866
-VISOR_HEIGHT=.404
-VISOR_CENTER_Z=2.755
+VISOR_HEIGHT=.380
+VISOR_CENTER_Z=2.790
 VISOR_CENTER_Y=-.845
 VISOR_DEPTH=.085
+def lower_visor_lift(x,width):
+    # Lift the lower centre into the screen, revealing a wider ceramic muzzle.
+    return .082*max(0,1-(x/width)**2)**2
+
 def visor_shell(name,width,height,cy,cz,depth,material):
     verts=[];faces=[];rings=48;segments=96
     verts.append((0,cy-depth,cz))
@@ -366,6 +370,7 @@ def visor_shell(name,width,height,cy,cz,depth,material):
             vertical=1.06 if v>=0 else .94
             x=width*r*math.copysign(abs(c)**power,c)
             z=cz+height*vertical*r*math.copysign(abs(v)**power,v)
+            if v<0:z+=lower_visor_lift(x,width)*r*abs(v)**power
             verts.append((x,cy-depth*math.cos(phi),z))
     back=len(verts);verts.append((0,cy+depth,cz))
     for i in range(segments):
@@ -378,10 +383,10 @@ def visor_shell(name,width,height,cy,cz,depth,material):
         faces.append((a,back,b))
     obj=poly_mesh(name,verts,faces,material,head)
     # Store the shaping contract for mesh-level regression checks.
-    obj["visor_profile"]="rounded-rectangle-v18"
+    obj["visor_profile"]="curved-inset-lower-edge-v19"
     return obj
-visor_shell("Visor white sculpted surround",.949,.467,-.690,2.752,.205,shell)
-visor_shell("Visor black precision gasket",.904,.430,-.805,2.754,.100,trim)
+visor_shell("Visor white sculpted surround",.949,.443,-.690,2.787,.205,shell)
+visor_shell("Visor black precision gasket",.904,.406,-.805,2.789,.100,trim)
 visor_shell("Visor curved midnight glass",VISOR_WIDTH,VISOR_HEIGHT,VISOR_CENTER_Y,VISOR_CENTER_Z,VISOR_DEPTH,navy)
 # A polished blue crest is integrated with the helmet, rather than a flat block.
 orb("Cobalt forehead enamel plate",(0,-.055,3.395),(.367,.655,.105),edge,head,48,28)
@@ -402,7 +407,7 @@ for sign,label in [(-1,"L"),(1,"R")]:
 def visor_depth(x,z,offset=.026):
     # negative Y is the front of this robot.
     exponent=VISOR_TOP_EXPONENT if z>=VISOR_CENTER_Z else VISOR_BOTTOM_EXPONENT
-    height=VISOR_HEIGHT*(1.06 if z>=VISOR_CENTER_Z else .94)
+    height=VISOR_HEIGHT*1.06 if z>=VISOR_CENTER_Z else VISOR_HEIGHT*.94-lower_visor_lift(x,VISOR_WIDTH)
     r2=(abs(x/VISOR_WIDTH)**exponent+abs((z-VISOR_CENTER_Z)/height)**exponent)**(2/exponent)
     return VISOR_CENTER_Y-VISOR_DEPTH*math.sqrt(max(.002,1-r2))-offset
 
@@ -448,6 +453,15 @@ def matrix_pixels(name,cx,base,width,outer,inner,parent):
 pupil_mat=mat("LED pupil deep ink",(.001,.004,.010),0,.65)
 catch_mat=mat("LED eye catchlight",(.30,.88,1),0,.4,1.4)
 def eye_mesh(name,points,faces,material,eye,cx,part):
+    # The reference has a lower eyelid cutting across the circular iris/pupil.
+    # Clip every display layer to one shared baseline before creating morphs.
+    if part!="brow":
+        clipped=[]
+        for x,y,z in points:
+            offset=visor_depth(x,z,0)-y
+            z=max(2.665,z)
+            clipped.append((x,visor_depth(x,z,offset),z))
+        points=clipped
     obj=poly_mesh(name,points,faces,material,eye)
     obj.shape_key_add(name="Basis")
     inv=eye.matrix_world.inverted()
@@ -486,7 +500,7 @@ for sign,label in [(-1,"L"),(1,"R")]:
     for ix in range(-16,17):
         for iz in range(-15,16):
             x=ix*.014;z=iz*.014
-            if (x/.224)**2+(z/.201)**2>1 or (x/.124)**2+(z/.133)**2<1:continue
+            if z<-.040 or (x/.224)**2+(z/.201)**2>1 or (x/.124)**2+(z/.133)**2<1:continue
             q=len(points);d=.0046
             for dx,dz in ((-d,-d),(d,-d),(d,d),(-d,d)):
                 xx=cx+x+dx;zz=zc+z+dz;points.append((xx,visor_depth(xx,zz,.010),zz))
@@ -509,7 +523,7 @@ for sign,label in [(-1,"L"),(1,"R")]:
         if i:faces.append((2*i-2,2*i,2*i+1,2*i-1))
     eye_mesh("Expressive LED brow "+label,points,faces,led_px,eye,cx,"brow")
 
-# V16 continuous-topology speech rig. Basis is a closed, friendly smile.
+# V19 continuous-topology speech rig. Basis is a broad, open friendly smile.
 # Shape keys export as named glTF morph targets and are shared by the browser
 # and the offline Blender renderer. The hand geometry is untouched.
 mouth=pivot("Mouth_Display",(0,-.72,2.20),head)
@@ -518,27 +532,39 @@ def helmet_front(x,z,offset=.0):
     return -.824*math.sqrt(max(.002,1-ratio))-offset
 
 VISEMES={
-    "REST":(.235,.006,.027), "A":(.205,.093,.014),
-    "E":(.260,.047,.016), "O":(.115,.090,.004),
+    "REST":(.290,.085,.033), "A":(.270,.125,.027),
+    "E":(.300,.070,.025), "O":(.135,.112,.004),
     "U":(.093,.061,.004), "M":(.222,.003,.018),
     "F":(.215,.021,.012), "S":(.225,.036,.012),
-    "SMILE":(.265,.042,.042),
+    "SMILE":(.315,.105,.040),
 }
 
 def mouth_points(shape,part):
     width,height,smile=VISEMES[shape]
     verts=[]; count=64
+    if part=="teeth":
+        visible=shape in {"REST","A","E","S","SMILE","F"}
+        for i in range(count):
+            t=2*math.pi*i/count
+            x=width*.87*math.cos(t) if visible else 0
+            u=x/width
+            top=2.285+height*.36*math.sqrt(max(0,1-u*u))+smile*u*u
+            z=top-.013+.011*math.sin(t) if visible else 2.285
+            verts.append((x,helmet_front(x,z,.050),z))
+        z=2.285+height*.36-.013 if visible else 2.285
+        verts.append((0,helmet_front(0,z,.050),z))
+        return verts
     if part=="tongue":
         # A small rounded tongue stays within the lower interior, collapsing
         # entirely for silence/closed consonants instead of a permanent pink bar.
-        visible=shape in {"A","E","S","SMILE"}
+        visible=shape in {"REST","A","E","S","SMILE"}
         for i in range(count):
             t=2*math.pi*i/count
             x=width*.57*math.cos(t) if visible else 0
-            z=2.204-height*.52+height*.19*math.sin(t) if visible else 2.204
+            z=2.285-height*.52+height*.19*math.sin(t) if visible else 2.285
             verts.append((x,helmet_front(x,z,.046),z))
-        verts.append((0,helmet_front(0,2.204-height*.52,.047),2.204-height*.52) if visible
-                     else (0,helmet_front(0,2.204,.046),2.204))
+        verts.append((0,helmet_front(0,2.285-height*.52,.047),2.285-height*.52) if visible
+                     else (0,helmet_front(0,2.285,.046),2.285))
         return verts
     # Two rings form a beveled rim; the cavity uses an outer ring + center.
     for r in range(2 if part=="rim" else 1):
@@ -547,15 +573,16 @@ def mouth_points(shape,part):
         off=(.038 if r==0 else .057) if part=="rim" else .036
         for i in range(count):
             t=2*math.pi*i/count;x=w*math.cos(t)
-            z=2.204+h*math.sin(t)+smile*math.cos(t)**2
+            z=2.285+h*math.sin(t)*(.36 if math.sin(t)>0 else 1)+smile*math.cos(t)**2
             verts.append((x,helmet_front(x,z,off),z))
-    if part=="cavity": verts.append((0,helmet_front(0,2.204,.035),2.204))
+    if part=="cavity": verts.append((0,helmet_front(0,2.285,.035),2.285))
     return verts
 
 for part,name,material in [
         ("rim","Mouth rim precision outline",mouth_border),
         ("cavity","Mouth open burgundy recess",mouth_dark),
-        ("tongue","Mouth warm coral tongue",tongue)]:
+        ("tongue","Mouth warm coral tongue",tongue),
+        ("teeth","Mouth upper ivory smile",shell)]:
     count=64
     faces=[(i,(i+1)%count,(i+1)%count+count,i+count) for i in range(count)] if part=="rim" else [
         (count,i,(i+1)%count) for i in range(count)]
