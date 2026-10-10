@@ -386,8 +386,8 @@ def visor_shell(name,width,height,cy,cz,depth,material):
     # Store the shaping contract for mesh-level regression checks.
     obj["visor_profile"]="subtle-shared-lower-curve-v20"
     return obj
-visor_shell("Visor white sculpted surround",.949,.443,-.690,2.787,.205,shell)
-visor_shell("Visor black precision gasket",.904,.406,-.805,2.789,.100,trim)
+visor_shell("Visor white sculpted surround",.949,.443,-.800,2.787,.080,shell)
+visor_shell("Visor black precision gasket",.904,.406,-.820,2.789,.065,trim)
 visor_shell("Visor curved midnight glass",VISOR_WIDTH,VISOR_HEIGHT,VISOR_CENTER_Y,VISOR_CENTER_Z,VISOR_DEPTH,navy)
 # A polished blue crest is integrated with the helmet, rather than a flat block.
 orb("Cobalt forehead enamel plate",(0,-.055,3.395),(.367,.655,.105),edge,head,48,28)
