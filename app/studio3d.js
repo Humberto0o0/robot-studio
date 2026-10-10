@@ -46,6 +46,12 @@ const nodes={},defaults={},faceMeshes=[];
 function findRig(model){
  model.traverse(o=>{
    if(o.name)nodes[o.name]=o;
+   // Preserve saturated screen colours under the bright studio exposure.
+   if(o.isMesh){
+    for(const mat of (Array.isArray(o.material)?o.material:[o.material])){
+     if(mat&&/Blue LED diffuser|Cyan LED pixel matrix/.test(mat.name))mat.toneMapped=false;
+    }
+   }
    if(o.morphTargetDictionary)faceMeshes.push(o);
    if(o.isObject3D)defaults[o.uuid]={q:o.quaternion.clone(),p:o.position.clone(),scale:o.scale.clone()};
  });
@@ -56,7 +62,7 @@ function findRig(model){
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
- new GLTFLoader().load('./models/robot-prototype.glb?v=27',
+ new GLTFLoader().load('./models/robot-prototype.glb?v=28',
   gltf=>{findRig(gltf.scene);state.ready=true;updateControls();},
   undefined,
   err=>{$('status').textContent='3D model failed';$('liveAction').textContent='Could not load the .glb model. Check connection or reload. '+String(err?.message||err);}

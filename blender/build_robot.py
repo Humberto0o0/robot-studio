@@ -97,19 +97,24 @@ orb("Floating rounded body",(0,0,1.27),(.74,.54,.73),shell,root)
 # Robot Studio V2: independent art direction for the HELMET, VISOR and
 # EXPRESSION RIG. All geometry below is real Blender mesh data, not an AI image.
 # Eye and mouth object names are stable identifiers consumed by studio3d.js.
-navy = mat("Black glass / clearcoat visor",(.004,.009,.024),.24,.07)
+navy = mat("Black glass / clearcoat visor",(.002,.005,.012),.10,.20)
 shell = mat("Ceramic pearl helmet",(.94,.973,1.0),.18,.13)
 trim = mat("Deep navy visor gasket",(.009,.025,.059),.43,.20)
 edge = mat("Iridescent cobalt anodized trim",(.025,.20,.95),.56,.14)
-led_bg = mat("Blue LED diffuser",(.012,.17,.64),.08,.23,.85)
-led_px = mat("Cyan LED pixel matrix",(.005,.32,.95),.02,.20,1.25)
+led_bg = mat("Blue LED diffuser",(0,.15,.65),0,.5,.85)
+led_px = mat("Cyan LED pixel matrix",(0,.38,1.0),0,.5,1.2)
+# The display emits its own colour; studio lights must not bleach it white.
+for display_material in (led_bg,led_px):
+    shader=display_material.node_tree.nodes.get("Principled BSDF")
+    shader.inputs["Base Color"].default_value=(0,0,0,1)
+    if "Specular IOR Level" in shader.inputs:shader.inputs["Specular IOR Level"].default_value=0
 mouth_dark = mat("Warm shaded smile cavity",(.022,.004,.009),.03,.42)
 tongue = mat("Coral pink mouth tongue",(.53,.075,.095),.02,.38)
 mouth_border = mat("Inner mouth rim",(.025,.012,.026),.12,.23)
 glass_sheen = mat("Blue glass visor reflection",(.075,.28,.68),.29,.09)
 for m in [navy,shell]:
     node=m.node_tree.nodes.get("Principled BSDF")
-    if "Coat Weight" in node.inputs: node.inputs["Coat Weight"].default_value=.65
+    if "Coat Weight" in node.inputs: node.inputs["Coat Weight"].default_value=.15 if m==navy else .65
     if "Coat Roughness" in node.inputs: node.inputs["Coat Roughness"].default_value=.10
 
 def poly_mesh(name, xyz, faces, material, parent):
@@ -341,12 +346,43 @@ ring("Jacket button champagne metal lip",(0,-.789,1.391),.045,.006,button_glint,
 
 head=pivot("Head_Pivot",(0,0,2.06),root)
 orb("Helmet / pearl white ceramic",(0,0,2.65),(1.052,.824,.82),shell,head,64,44)
-# Three concentric ellipsoids form a thick visible white bezel, a narrow dark
-# rubber gasket and the smoothly convex black glass display. They overlap, but
-# the visor projects further forward so no black outlines cut across the eyes.
-orb("Visor white sculpted surround",(0,-.535,2.72),(.963,.315,.532),shell,head,64,40)
-orb("Visor black precision gasket",(0,-.610,2.724),(.917,.282,.488),trim,head,64,40)
-orb("Visor curved midnight glass",(0,-.662,2.727),(.876,.259,.461),navy,head,72,48)
+# V18 rounded rectangular visor, with a softly convex superellipse surface.
+# All three layers share the same silhouette and the LEDs use its exact depth.
+VISOR_TOP_EXPONENT=3.2
+VISOR_BOTTOM_EXPONENT=4.5
+VISOR_WIDTH=.866
+VISOR_HEIGHT=.404
+VISOR_CENTER_Z=2.755
+VISOR_CENTER_Y=-.662
+VISOR_DEPTH=.259
+def visor_shell(name,width,height,cy,cz,depth,material):
+    verts=[];faces=[];rings=48;segments=96
+    verts.append((0,cy-depth,cz))
+    for j in range(1,rings):
+        phi=math.pi*j/rings;r=math.sin(phi)
+        for i in range(segments):
+            t=2*math.pi*i/segments;c=math.cos(t);v=math.sin(t)
+            power=2/(VISOR_TOP_EXPONENT if v>=0 else VISOR_BOTTOM_EXPONENT)
+            vertical=1.06 if v>=0 else .94
+            x=width*r*math.copysign(abs(c)**power,c)
+            z=cz+height*vertical*r*math.copysign(abs(v)**power,v)
+            verts.append((x,cy-depth*math.cos(phi),z))
+    back=len(verts);verts.append((0,cy+depth,cz))
+    for i in range(segments):
+        k=(i+1)%segments
+        faces.append((0,1+i,1+k))
+        for j in range(rings-2):
+            a=1+j*segments+i;b=1+j*segments+k
+            faces.append((a,a+segments,b+segments,b))
+        a=1+(rings-2)*segments+i;b=1+(rings-2)*segments+k
+        faces.append((a,back,b))
+    obj=poly_mesh(name,verts,faces,material,head)
+    # Store the shaping contract for mesh-level regression checks.
+    obj["visor_profile"]="rounded-rectangle-v18"
+    return obj
+visor_shell("Visor white sculpted surround",.949,.467,-.535,2.752,.315,shell)
+visor_shell("Visor black precision gasket",.904,.430,-.610,2.754,.282,trim)
+visor_shell("Visor curved midnight glass",VISOR_WIDTH,VISOR_HEIGHT,VISOR_CENTER_Y,VISOR_CENTER_Z,VISOR_DEPTH,navy)
 # A polished blue crest is integrated with the helmet, rather than a flat block.
 orb("Cobalt forehead enamel plate",(0,-.055,3.395),(.367,.655,.105),edge,head,48,28)
 orb("Cobalt crest glint",(0,-.18,3.473),(.205,.31,.017),blue,head,48,16)
@@ -365,8 +401,10 @@ for sign,label in [(-1,"L"),(1,"R")]:
 # the face integrated with the glass as the head rotates in Three.js.
 def visor_depth(x,z,offset=.026):
     # negative Y is the front of this robot.
-    u=(x/.876)**2 + ((z-2.727)/.461)**2
-    return -.662-.259*math.sqrt(max(.002,1.0-u))-offset
+    exponent=VISOR_TOP_EXPONENT if z>=VISOR_CENTER_Z else VISOR_BOTTOM_EXPONENT
+    height=VISOR_HEIGHT*(1.06 if z>=VISOR_CENTER_Z else .94)
+    r2=(abs(x/VISOR_WIDTH)**exponent+abs((z-VISOR_CENTER_Z)/height)**exponent)**(2/exponent)
+    return VISOR_CENTER_Y-VISOR_DEPTH*math.sqrt(max(.002,1-r2))-offset
 
 def curved_strip(name,cx,z0,width,height,thickness,material,parent,yoff=.036,segments=28):
     verts,faces=[],[]
@@ -464,7 +502,9 @@ for sign,label in [(-1,"L"),(1,"R")]:
     points=[];faces=[]
     for i in range(25):
         u=i/24;x=cx+(u-.5)*.34
-        for z in (2.989+.028*math.sin(u*math.pi),2.955+.028*math.sin(u*math.pi)):
+        center=2.977+.050*math.sin(u*math.pi)
+        half=.023*math.sin(u*math.pi)**.35
+        for z in (center+half,center-half):
             points.append((x,visor_depth(x,z,.010),z))
         if i:faces.append((2*i-2,2*i,2*i+1,2*i-1))
     eye_mesh("Expressive LED brow "+label,points,faces,led_px,eye,cx,"brow")
