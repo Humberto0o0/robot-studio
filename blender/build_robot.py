@@ -949,12 +949,12 @@ for obj in list(root.children):
     if obj.type == 'MESH' and not obj.name.startswith('Hover'):
         obj.matrix_world=Matrix.Diagonal((.84,.92,1,1)) @ obj.matrix_world
 head.scale=(.95,1,1.08)
-head.location.z+=.34
+head.location.z+=.46
 for shoulder in shoulders.values():
     shoulder.location.x*=.84
 # A short graphite neck supports the separated head behind the collar.
-tube("Neck recessed graphite support",(0,0,2.03),(0,0,2.30),.15,black,root,40)
-ring("Neck porcelain bearing",(0,0,2.20),.16,.025,shell,root)
+tube("Neck recessed graphite support",(0,0,2.03),(0,0,2.43),.15,black,root,40)
+ring("Neck porcelain bearing",(0,0,2.32),.16,.025,shell,root)
 bpy.context.view_layer.update()
 
 # Distinct animated nodes produce a reusable animation track in glTF.
