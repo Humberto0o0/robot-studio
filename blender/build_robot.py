@@ -4,7 +4,7 @@ This is a geometry/rigging proof of concept, not the final art-quality character
 """
 import bpy
 import math
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from pathlib import Path
 
 ROOT = Path(bpy.path.abspath("//")).resolve()
@@ -348,8 +348,8 @@ head=pivot("Head_Pivot",(0,0,2.06),root)
 orb("Helmet / pearl white ceramic",(0,0,2.65),(1.052,.824,.82),shell,head,64,44)
 # V18 rounded rectangular visor, with a softly convex superellipse surface.
 # All three layers share the same silhouette and the LEDs use its exact depth.
-VISOR_TOP_EXPONENT=3.2
-VISOR_BOTTOM_EXPONENT=4.5
+VISOR_TOP_EXPONENT=2.8
+VISOR_BOTTOM_EXPONENT=6.0
 VISOR_WIDTH=.866
 VISOR_HEIGHT=.380
 VISOR_CENTER_Z=2.790
@@ -358,7 +358,7 @@ VISOR_DEPTH=.085
 def lower_visor_lift(x,width):
     # One shallow, broad curve shared by glass, gasket and ceramic surround.
     # Use the same physical radius for every layer so their edges flow together.
-    return .035*max(0,1-(x/.949)**2)
+    return .078*max(0,1-(x/.949)**2)
 
 def visor_shell(name,width,height,cy,cz,depth,material):
     verts=[];faces=[];rings=48;segments=96
@@ -384,7 +384,7 @@ def visor_shell(name,width,height,cy,cz,depth,material):
         faces.append((a,back,b))
     obj=poly_mesh(name,verts,faces,material,head)
     # Store the shaping contract for mesh-level regression checks.
-    obj["visor_profile"]="subtle-shared-lower-curve-v20"
+    obj["visor_profile"]="rounded-head-inward-visor-v21"
     return obj
 visor_shell("Visor white sculpted surround",.949,.443,-.800,2.787,.080,shell)
 visor_shell("Visor black precision gasket",.904,.406,-.820,2.789,.065,trim)
@@ -941,6 +941,21 @@ if wire_parts:
 
 ring("Hover ground ring",(0,0,.36),.74,.044,cyan,root)
 orb("Hover core",(0,0,.51),(.26,.26,.09),cyan,root)
+
+# V21 reference proportions. Transform the complete head as one assembly,
+# including every face morph. Tailor only torso meshes; hands retain their shape.
+bpy.context.view_layer.update()
+for obj in list(root.children):
+    if obj.type == 'MESH' and not obj.name.startswith('Hover'):
+        obj.matrix_world=Matrix.Diagonal((.84,.92,1,1)) @ obj.matrix_world
+head.scale=(.95,1,1.08)
+head.location.z+=.34
+for shoulder in shoulders.values():
+    shoulder.location.x*=.84
+# A short graphite neck supports the separated head behind the collar.
+tube("Neck recessed graphite support",(0,0,2.03),(0,0,2.30),.15,black,root,40)
+ring("Neck porcelain bearing",(0,0,2.20),.16,.025,shell,root)
+bpy.context.view_layer.update()
 
 # Distinct animated nodes produce a reusable animation track in glTF.
 keys=[
