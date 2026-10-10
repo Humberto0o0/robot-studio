@@ -6,7 +6,7 @@ The browser and Blender now animate named speech shapes on the same procedural r
 
 Upload voice audio and paste its exact words. The local director estimates word and mouth timing inside detected speech regions, leaving pauses closed. This is **text-derived timing, not phoneme recognition or forced alignment**. Without text, audio energy selects a simple fallback mouth pose.
 
-Under **Director → Expression**, choose automatic, attentive or friendly eyes. Expand **Speech preview and timing** to inspect Ah, Ee, Oh, Oo, closed M/B/P, F/V, consonants and smile while paused. Returning to automatic restores voice-driven speech.
+Under **Director → Expression**, choose automatic, attentive, friendly or surprised eyes. Expand **Speech preview and timing** to inspect Ah, Ee, Oh, Oo, closed M/B/P, F/V, consonants and smile while paused. Returning to automatic restores voice-driven speech.
 
 For accurate timing supplied by a voice/alignment service, load the matching audio, then import:
 
@@ -59,4 +59,12 @@ Watch the [reviewed speaking demo](../demo.html). The video and three mobile ins
 
 Run **Build 3D Robot with Blender** manually in GitHub Actions, or use a commit message containing `[demo]`. After model/mobile validation, a separate job renders a short spoken test with the actual robot and uploads `robot-speaking-demo`.
 
-The diagnostic voice is eSpeak, not the intended brand voice. The clip uses 360×640 at 12 fps for economical software-rendered inspection. The renderer supports larger presets, but full-HD offline performance is not established by this draft test. Mobile browser recording remains separately tested at 1080×1920.
+The diagnostic voice is eSpeak, not the intended brand voice. The current seven-second movement study uses 540×960 at 24 fps. The previous 360×640, 12 fps diagnostic remains linked for comparison. The renderer supports larger presets, but full-HD offline performance is not established by this draft test. Mobile browser recording remains separately tested at 1080×1920.
+
+## V17 reference-inspired movement study
+
+`blender/reference_take.py` contains the authored 7.47-second performance. It includes preparation, outward presentation, lowered emphasis, gaze, blink and recovery poses. A plan with `"choreography": "reference-study"` selects it in the offline renderer. It does not extract motion from uploaded video and is not yet a general automatic gesture planner. The ordinary browser director remains available.
+
+The open LED face is actual projected geometry: iris diffuser, pixel matrix, inset pupil, catchlight and separate brows. Named morph targets include `ATTENTIVE`, `FRIENDLY`, `SURPRISED`, `BLINK`, `LOOK_LEFT` and `LOOK_RIGHT`. All facial pieces follow the same head rig.
+
+Only the supplied reference's visual movement informed the authored pose sequence. Its video, images and audio are not published or embedded. The demonstration uses newly synthesized diagnostic speech with estimated timing.
