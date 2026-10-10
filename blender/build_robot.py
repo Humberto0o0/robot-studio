@@ -356,8 +356,9 @@ VISOR_CENTER_Z=2.790
 VISOR_CENTER_Y=-.845
 VISOR_DEPTH=.085
 def lower_visor_lift(x,width):
-    # Lift the lower centre into the screen, revealing a wider ceramic muzzle.
-    return .082*max(0,1-(x/width)**2)**2
+    # One shallow, broad curve shared by glass, gasket and ceramic surround.
+    # Use the same physical radius for every layer so their edges flow together.
+    return .035*max(0,1-(x/.949)**2)
 
 def visor_shell(name,width,height,cy,cz,depth,material):
     verts=[];faces=[];rings=48;segments=96
@@ -383,7 +384,7 @@ def visor_shell(name,width,height,cy,cz,depth,material):
         faces.append((a,back,b))
     obj=poly_mesh(name,verts,faces,material,head)
     # Store the shaping contract for mesh-level regression checks.
-    obj["visor_profile"]="curved-inset-lower-edge-v19"
+    obj["visor_profile"]="subtle-shared-lower-curve-v20"
     return obj
 visor_shell("Visor white sculpted surround",.949,.443,-.690,2.787,.205,shell)
 visor_shell("Visor black precision gasket",.904,.406,-.805,2.789,.100,trim)

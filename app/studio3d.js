@@ -62,7 +62,7 @@ function findRig(model){
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
- new GLTFLoader().load('./models/robot-prototype.glb?v=30',
+ new GLTFLoader().load('./models/robot-prototype.glb?v=31',
   gltf=>{findRig(gltf.scene);state.ready=true;updateControls();},
   undefined,
   err=>{$('status').textContent='3D model failed';$('liveAction').textContent='Could not load the .glb model. Check connection or reload. '+String(err?.message||err);}
