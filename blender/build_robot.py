@@ -140,7 +140,7 @@ def poly_mesh(name, xyz, faces, material, parent):
 # authentic glTF textures; no flat reference PNGs or box-shaped lapel primitives.
 shirt=mat("Silky ivory shirt",(.94,.975,1),.025,.30)
 suit_lining=mat("Jacket navy shadow piping",(.008,.025,.10),.11,.45)
-suit_highlight=mat("Cobalt satin lapel facing",(.012,.10,.48),.06,.44)
+suit_highlight=mat("Cobalt satin lapel facing",(.008,.055,.32),.03,.52)
 fabric_shadow=mat("Blue jacket edge shadow",(.014,.078,.43),.13,.53)
 metal_button=mat("Antique graphite metal button",(.12,.15,.21),.82,.19)
 button_glint=mat("Button champagne rim",(.54,.35,.14),.65,.19)
@@ -289,23 +289,23 @@ for sign,label in [(-1,"L"),(1,"R")]:
 # a narrow deep V over the tie, using satin fabric contrast and seam piping.
 for sign,label in [(-1,"L"),(1,"R")]:
     front_patch("Hand-tailored satin lapel "+label,
-     [(sign*.615,2.025),(sign*.321,2.066),(sign*.205,1.881),
-      (sign*.095,1.716),(sign*.475,1.838)],
+     [(sign*.510,2.040),(sign*.321,2.100),(sign*.225,1.947),
+      (sign*.280,1.923),(sign*.090,1.660),(sign*.405,1.880)],
      suit_highlight,.156,.012)
     # Dark inward lapel seam follows the cloth edge.
     stitched_line("Lapel navy rolled edge "+label,
-     [(sign*.319,2.058),(sign*.204,1.881),(sign*.095,1.716)],
+     [(sign*.319,2.096),(sign*.224,1.947),(sign*.280,1.923),(sign*.090,1.660)],
      suit_lining,.010)
     stitched_line("Lapel cobalt top stitch "+label,
-     [(sign*.606,2.013),(sign*.474,1.834),(sign*.096,1.712)],
+     [(sign*.500,2.034),(sign*.404,1.880),(sign*.094,1.665)],
      woven,.006)
     # Lower jacket fronts taper into a visually clean center closure.
     front_patch("Tailored jacket front "+label,
      [(sign*.72,1.83),(sign*.54,1.74),(sign*.102,1.485),
-      (sign*.041,1.321),(sign*.48,1.325),(sign*.715,1.5)],
+      (sign*.041,1.410),(sign*.38,1.285),(sign*.48,1.325),(sign*.715,1.5)],
      woven,.079)
     stitched_line("Jacket outer curved hem "+label,
-     [(sign*.68,1.49),(sign*.47,1.324),(sign*.07,1.318)],
+     [(sign*.68,1.49),(sign*.47,1.324),(sign*.38,1.285),(sign*.07,1.410)],
      fabric_shadow,.009)
 
 # Folded silk tie: sculpted diamond blade with two-sided relief, not yellow
@@ -926,6 +926,13 @@ for k in range(16):
 orb("Microphone thin cobalt lower capsule seam",
     (-.438,-.943,1.947),(.130,.128,.011),mic_trim,wrists["L"],36,16)
 
+# Visible neon band sits OUTSIDE the grille instead of buried under it.
+tube("Microphone neon blue broadcast band",(-.440,-.943,1.997),
+     (-.440,-.943,2.045),.169,mic_cyan,wrists["L"],64)
+for z in (1.992,2.050):
+    ring("Microphone neon band dark edging "+str(z),(-.440,-.943,z),
+         .169,.006,mic_grip,wrists["L"])
+
 # All woven-wire pieces are rigidly attached to the same wrist. Join only
 # those static meshes, preserving the editable hand rig and the capsule body.
 # This replaces hundreds of tiny draw calls with one material batch.
@@ -949,7 +956,7 @@ for obj in list(root.children):
     if obj.type == 'MESH' and not obj.name.startswith('Hover'):
         obj.matrix_world=Matrix.Diagonal((.84,.92,1,1)) @ obj.matrix_world
 head.scale=(.95,1,1.08)
-head.location.z+=.46
+head.location.z+=.37
 for shoulder in shoulders.values():
     shoulder.location.x*=.84
 # A short graphite neck supports the separated head behind the collar.
@@ -958,18 +965,27 @@ ring("Neck porcelain bearing",(0,0,2.32),.16,.025,shell,root)
 # Tailored shoulder-to-neck transition: broad at the jacket, gently narrowing
 # into the collar rather than leaving the mechanical neck fully exposed.
 verts=[];faces=[];segments=64
-profiles=[(2.04,.51,.36),(2.10,.46,.32),(2.17,.35,.26),
+profiles=[(2.04,.49,.30),(2.10,.43,.27),(2.17,.35,.23),
           (2.24,.25,.205),(2.30,.195,.175),(2.34,.18,.16)]
 for z,rx,ry in profiles:
     for i in range(segments):
         a=2*math.pi*i/segments
-        verts.append((rx*math.cos(a),-.015+ry*math.sin(a),z))
+        verts.append((rx*math.cos(a),-.065+ry*math.sin(a),z))
 for j in range(len(profiles)-1):
     for i in range(segments):
         a=j*segments+i;b=j*segments+(i+1)%segments
         faces.append((a,b,b+segments,a+segments))
 poly_mesh("Suit rising tailored neckline",verts,faces,woven,root)
 ring("Ivory shirt standing collar",(0,-.015,2.335),.168,.025,shirt,root)
+# Folded white collar tips rise from the tie towards the neck, covering the
+# plain blue throat with the shirt collar visible in the concept.
+for sign,label in [(-1,"L"),(1,"R")]:
+    poly_mesh("Raised ivory collar fold "+label,
+        [(sign*.045,-.247,2.305),(sign*.180,-.225,2.295),
+         (sign*.225,-.435,2.070),(sign*.135,-.515,2.000),
+         (sign*.075,-.405,2.135)],
+        [(0,1,4),(1,2,4),(2,3,4)],shirt,root)
+
 
 bpy.context.view_layer.update()
 
