@@ -998,14 +998,33 @@ for j in range(len(profiles)-1):
         faces.append((a,b,b+segments,a+segments))
 poly_mesh("Suit rising tailored neckline",verts,faces,woven,root)
 ring("Ivory shirt standing collar",(0,-.015,2.335),.168,.025,shirt,root)
-# Folded white collar tips rise from the tie towards the neck, covering the
-# plain blue throat with the shirt collar visible in the concept.
-for sign,label in [(-1,"L"),(1,"R")]:
-    poly_mesh("Raised ivory collar fold "+label,
-        [(sign*.045,-.247,2.305),(sign*.180,-.225,2.295),
-         (sign*.225,-.435,2.070),(sign*.135,-.515,2.000),
-         (sign*.075,-.405,2.135)],
-        [(0,1,4),(1,2,4),(2,3,4)],shirt,root)
+# Refit existing garment details to the higher neckline as one coordinated
+# layout. Remove the temporary tall collar overlays; keep one folded collar.
+bpy.context.view_layer.update()
+garment_prefixes=("White shirt", "Folded ivory", "Collar stitch", "Hand-tailored",
+    "Lapel ", "Tailored jacket front", "Jacket outer", "Silk tie", "Orange necktie",
+    "Tailored orange", "Tie diagonal", "Fine necktie", "Decorative hip",
+    "Pocket dark", "Suit breast", "Orange silk pocket", "Chest welt", "Jacket button")
+def tailored_front(x,z):
+    surfaces=[]
+    q=1-(x/(.798*.84))**2-((z-1.69)/.536)**2
+    if q>0:surfaces.append(-.085*.92-.554*.92*math.sqrt(q))
+    for (za,xa,ya),(zb,xb,yb) in zip(profiles,profiles[1:]):
+        if za<=z<=zb:
+            t=(z-za)/(zb-za);rx=xa+(xb-xa)*t;ry=ya+(yb-ya)*t
+            if abs(x)<rx:surfaces.append(-.065-ry*math.sqrt(1-(x/rx)**2))
+    return min(surfaces) if surfaces else -.20
+for obj in list(root.children):
+    if obj.type!='MESH' or not obj.name.startswith(garment_prefixes):continue
+    world=obj.matrix_world.copy();inv=world.inverted()
+    for vertex in obj.data.vertices:
+        point=world @ vertex.co;x,y,z=point
+        t=max(0,min(1,(z-1.38)/.67));lift=.20*t*t*(3-2*t)
+        old_front=suit_surface(x/.84,z,0)*.92
+        # Keep deliberate layer clearance, but reduce the old bulky stand-off.
+        clearance=max(.012,old_front-y)
+        nz=z+lift
+        vertex.co=inv @ Vector((x,tailored_front(x,nz)-clearance*.72,nz))
 
 
 bpy.context.view_layer.update()
