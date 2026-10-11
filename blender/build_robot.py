@@ -1019,10 +1019,17 @@ for obj in list(root.children):
     world=obj.matrix_world.copy();inv=world.inverted()
     for vertex in obj.data.vertices:
         point=world @ vertex.co;x,y,z=point
-        t=max(0,min(1,(z-1.38)/.67));lift=.20*t*t*(3-2*t)
+        t=max(0,min(1,(z-1.38)/.67))
+        rise=.20
+        if obj.name.startswith(("Hand-tailored", "Lapel ")):rise=.115
+        elif obj.name.startswith(("Suit breast", "Orange silk pocket", "Chest welt")):rise=.065
+        elif obj.name.startswith(("Decorative hip", "Pocket dark")):rise=.025
+        elif obj.name.startswith(("Silk tie", "Orange necktie", "Tailored orange", "Tie diagonal", "Fine necktie")):rise=.17
+        lift=rise*t*t*(3-2*t)
         old_front=suit_surface(x/.84,z,0)*.92
         # Keep deliberate layer clearance, but reduce the old bulky stand-off.
         clearance=max(.012,old_front-y)
+        if obj.name.startswith(("Hand-tailored", "Lapel ")):clearance=min(clearance,.065)
         nz=z+lift
         vertex.co=inv @ Vector((x,tailored_front(x,nz)-clearance*.72,nz))
 
