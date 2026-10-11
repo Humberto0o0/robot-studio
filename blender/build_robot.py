@@ -109,8 +109,8 @@ for display_material in (led_bg,led_px):
     shader.inputs["Base Color"].default_value=(0,0,0,1)
     if "Specular IOR Level" in shader.inputs:shader.inputs["Specular IOR Level"].default_value=0
 mouth_dark = mat("Warm shaded smile cavity",(.022,.004,.009),.03,.42)
-tongue = mat("Coral pink mouth tongue",(.53,.075,.095),.02,.38)
-mouth_border = mat("Inner mouth rim",(.025,.012,.026),.12,.23)
+tongue = mat("Coral pink mouth tongue",(.82,.105,.045),.0,.48)
+mouth_border = mat("Inner mouth rim",(.012,.006,.012),.02,.50)
 glass_sheen = mat("Blue glass visor reflection",(.075,.28,.68),.29,.09)
 for m in [navy,shell]:
     node=m.node_tree.nodes.get("Principled BSDF")
@@ -554,11 +554,11 @@ def helmet_front(x,z,offset=.0):
     return -.824*math.sqrt(max(.002,1-ratio))-offset
 
 VISEMES={
-    "REST":(.290,.085,.033), "A":(.270,.125,.027),
+    "REST":(.325,.097,.044), "A":(.270,.125,.027),
     "E":(.300,.070,.025), "O":(.135,.112,.004),
     "U":(.093,.061,.004), "M":(.222,.003,.018),
     "F":(.215,.021,.012), "S":(.225,.036,.012),
-    "SMILE":(.315,.105,.040),
+    "SMILE":(.350,.113,.052),
 }
 
 def mouth_points(shape,part):
@@ -571,9 +571,9 @@ def mouth_points(shape,part):
             x=width*.87*math.cos(t) if visible else 0
             u=x/width
             top=2.285+height*.36*math.sqrt(max(0,1-u*u))+smile*u*u
-            z=top-.013+.011*math.sin(t) if visible else 2.285
+            z=top-.019+.020*math.sin(t) if visible else 2.285
             verts.append((x,helmet_front(x,z,.050),z))
-        z=2.285+height*.36-.013 if visible else 2.285
+        z=2.285+height*.36-.019 if visible else 2.285
         verts.append((0,helmet_front(0,z,.050),z))
         return verts
     if part=="tongue":
@@ -582,17 +582,17 @@ def mouth_points(shape,part):
         visible=shape in {"REST","A","E","S","SMILE"}
         for i in range(count):
             t=2*math.pi*i/count
-            x=width*.57*math.cos(t) if visible else 0
-            z=2.285-height*.52+height*.19*math.sin(t) if visible else 2.285
-            verts.append((x,helmet_front(x,z,.046),z))
-        verts.append((0,helmet_front(0,2.285-height*.52,.047),2.285-height*.52) if visible
+            x=width*.53*math.cos(t) if visible else 0
+            z=2.285-height*.58+height*.27*math.sin(t) if visible else 2.285
+            verts.append((x,helmet_front(x,z,.047),z))
+        verts.append((0,helmet_front(0,2.285-height*.58,.058),2.285-height*.58) if visible
                      else (0,helmet_front(0,2.285,.046),2.285))
         return verts
     # Two rings form a beveled rim; the cavity uses an outer ring + center.
     for r in range(2 if part=="rim" else 1):
-        w=width+(.014 if r==0 and part=="rim" else 0)
-        h=height+(.012 if r==0 and part=="rim" else 0)
-        off=(.038 if r==0 else .057) if part=="rim" else .036
+        w=width+(.007 if r==0 and part=="rim" else 0)
+        h=height+(.006 if r==0 and part=="rim" else 0)
+        off=(.037 if r==0 else .048) if part=="rim" else .036
         for i in range(count):
             t=2*math.pi*i/count;x=w*math.cos(t)
             z=2.285+h*math.sin(t)*(.36 if math.sin(t)>0 else 1)+smile*math.cos(t)**2
