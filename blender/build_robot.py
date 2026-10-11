@@ -350,15 +350,15 @@ orb("Helmet / pearl white ceramic",(0,0,2.65),(1.052,.824,.82),shell,head,64,44)
 # All three layers share the same silhouette and the LEDs use its exact depth.
 VISOR_TOP_EXPONENT=2.8
 VISOR_BOTTOM_EXPONENT=6.0
-VISOR_WIDTH=.866
-VISOR_HEIGHT=.380
-VISOR_CENTER_Z=2.790
-VISOR_CENTER_Y=-.845
-VISOR_DEPTH=.085
+VISOR_WIDTH=.760
+VISOR_HEIGHT=.330
+VISOR_CENTER_Z=2.815
+VISOR_CENTER_Y=-.855
+VISOR_DEPTH=.075
 def lower_visor_lift(x,width):
     # One shallow, broad curve shared by glass, gasket and ceramic surround.
     # Use the same physical radius for every layer so their edges flow together.
-    return .078*max(0,1-(x/.949)**2)
+    return .078*max(0,1-(x/.833)**2)
 
 def visor_shell(name,width,height,cy,cz,depth,material):
     verts=[];faces=[];rings=48;segments=96
@@ -386,8 +386,8 @@ def visor_shell(name,width,height,cy,cz,depth,material):
     # Store the shaping contract for mesh-level regression checks.
     obj["visor_profile"]="rounded-head-inward-visor-v21"
     return obj
-visor_shell("Visor white sculpted surround",.949,.443,-.800,2.787,.080,shell)
-visor_shell("Visor black precision gasket",.904,.406,-.820,2.789,.065,trim)
+visor_shell("Visor white sculpted surround",.833,.390,-.825,2.812,.055,shell)
+visor_shell("Visor black precision gasket",.795,.353,-.840,2.814,.050,trim)
 visor_shell("Visor curved midnight glass",VISOR_WIDTH,VISOR_HEIGHT,VISOR_CENTER_Y,VISOR_CENTER_Z,VISOR_DEPTH,navy)
 # A polished blue crest is integrated with the helmet, rather than a flat block.
 orb("Cobalt forehead enamel plate",(0,-.055,3.395),(.367,.655,.105),edge,head,48,28)
@@ -955,6 +955,22 @@ for shoulder in shoulders.values():
 # A short graphite neck supports the separated head behind the collar.
 tube("Neck recessed graphite support",(0,0,2.03),(0,0,2.43),.15,black,root,40)
 ring("Neck porcelain bearing",(0,0,2.32),.16,.025,shell,root)
+# Tailored shoulder-to-neck transition: broad at the jacket, gently narrowing
+# into the collar rather than leaving the mechanical neck fully exposed.
+verts=[];faces=[];segments=64
+profiles=[(2.04,.51,.36),(2.10,.46,.32),(2.17,.35,.26),
+          (2.24,.25,.205),(2.30,.195,.175),(2.34,.18,.16)]
+for z,rx,ry in profiles:
+    for i in range(segments):
+        a=2*math.pi*i/segments
+        verts.append((rx*math.cos(a),-.015+ry*math.sin(a),z))
+for j in range(len(profiles)-1):
+    for i in range(segments):
+        a=j*segments+i;b=j*segments+(i+1)%segments
+        faces.append((a,b,b+segments,a+segments))
+poly_mesh("Suit rising tailored neckline",verts,faces,woven,root)
+ring("Ivory shirt standing collar",(0,-.015,2.335),.168,.025,shirt,root)
+
 bpy.context.view_layer.update()
 
 # Distinct animated nodes produce a reusable animation track in glTF.
