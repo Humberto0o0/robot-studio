@@ -1,4 +1,4 @@
-import {SPEECH_SHAPES,estimateVisemes,validateTiming,shapeAt,blinkAt,presenterMotion,motionBlend} from './performance.mjs?v=27';
+import {SPEECH_SHAPES,estimateVisemes,validateTiming,shapeAt,blinkAt,presenterMotion,motionBlend} from './performance.mjs?v=28';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
@@ -62,7 +62,7 @@ function findRig(model){
  $('liveAction').textContent='Real shoulder and elbow joints loaded. Add audio for automatic direction.';
 }
 if(renderer){
- new GLTFLoader().load('./models/robot-prototype.glb?v=40',
+ new GLTFLoader().load('./models/robot-prototype.glb?v=41',
   gltf=>{findRig(gltf.scene);state.ready=true;updateControls();},
   undefined,
   err=>{$('status').textContent='3D model failed';$('liveAction').textContent='Could not load the .glb model. Check connection or reload. '+String(err?.message||err);}
@@ -175,12 +175,13 @@ function gestureAt(t){
  return cue.pose;
 }
 let jointBlend=1;
-function applyJoint(name,axis,amount){
+function applyJoint(name,axis,amount,secondary=0){
  const o=nodes[name];if(!o)return;
  const def=defaults[o.uuid];
  const target=def.q.clone();
  const v=axis==='y'?new THREE.Vector3(0,1,0):axis==='x'?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1);
  target.multiply(new THREE.Quaternion().setFromAxisAngle(v,amount));
+ if(secondary)target.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),secondary));
  o.quaternion.slerp(target,jointBlend);
 }
 function applyPosition(name,x,y,z){
@@ -203,9 +204,10 @@ function animate3D(t,dt,loud){
  const hover=settings.float ? .012*Math.sin(ph*1.15) : 0;
  applyPosition('Robot_Root',0,hover,0);
  const motion=presenterMotion(ph,intro,pulse);
- applyJoint('Head_Pivot','z',motion.head);
+ applyJoint('Head_Pivot','z',motion.head,motion.nod);
  applyJoint('Shoulder_L','y',motion.micShoulder);
  applyJoint('Elbow_L','y',motion.micElbow);
+ applyJoint('Wrist_L','y',motion.micWrist);
  applyJoint('Shoulder_R','y',motion.shoulder);
  applyJoint('Elbow_R','y',motion.elbow);
  applyJoint('Wrist_R','z',motion.wrist);
@@ -217,10 +219,8 @@ function animate3D(t,dt,loud){
    const wave= intro==='wave'?.015*Math.sin(ph*6.1+k*.6)*pulse:0;
    applyJoint('Finger_R_'+k+'_Knuckle','z',gestureSoft+stagger+wave);
    applyJoint('Finger_R_'+k+'_Tip','x',gestureSoft*.18);
-   applyJoint('Finger_L_'+k+'_Knuckle','z',0);
  }
  applyJoint('Thumb_R_Root','z',-.012+gestureSoft*.22);
- applyJoint('Thumb_L_Root','z',0);
  const mouthOn=settings.mouth&&(state.duration?activeSpeech(t):false);
  let shape=state.manualShape!=='AUTO'&&!state.playing?state.manualShape:'REST';
  if(state.manualShape==='AUTO'||state.playing){

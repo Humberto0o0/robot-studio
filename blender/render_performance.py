@@ -30,7 +30,7 @@ for obj in bpy.data.objects:
     obj.animation_data_clear()
     if obj.type=='MESH' and obj.data.shape_keys:obj.data.shape_keys.animation_data_clear()
 root=bpy.data.objects['Robot_Root'];head=bpy.data.objects['Head_Pivot']
-base={n:tuple(bpy.data.objects[n].rotation_euler) for n in ['Head_Pivot','Shoulder_R','Elbow_R','Shoulder_L','Elbow_L','Wrist_R']}
+base={n:tuple(bpy.data.objects[n].rotation_euler) for n in ['Head_Pivot','Shoulder_R','Elbow_R','Shoulder_L','Elbow_L','Wrist_R','Wrist_L']}
 base_root=tuple(root.location);base_root_rotation=tuple(root.rotation_euler)
 study=plan.get('choreography')=='reference-study'
 face=[o for o in bpy.data.objects if o.type=='MESH' and o.data.shape_keys]
@@ -57,7 +57,9 @@ for frame in range(1,num+1):
     rotations={
         'Head_Pivot':(0,.018*math.sin(t*1.1),.021*math.sin(t*.8)),
         'Shoulder_R':(0,raised,0), 'Elbow_R':(0,.10*pulse,0),
-        'Shoulder_L':(0,-.018,0), 'Elbow_L':(0,0,0),
+        'Shoulder_L':(0,-.018-.035*pulse*plan['settings']['energy'],0),
+        'Elbow_L':(0,.065*pulse*plan['settings']['energy'],0),
+        'Wrist_L':(0,-.030*pulse*plan['settings']['energy'],0),
         'Wrist_R':(0,0,.15*pulse*math.sin(t*4.2) if pose=='wave' else 0),
     }
     if pose in ('nod','emphasis'):rotations['Head_Pivot']=(.05*math.sin(t*6)*pulse,0,0)

@@ -61,8 +61,8 @@ export function blinkAt(t){
 export function presenterMotion(t,pose,pulse){
  const p=Math.max(0,Math.min(1,pulse));
  return {
-  micShoulder:-.018, micElbow:0,
-  head:.014*Math.sin(t*.85)+.024*p,
+  micShoulder:-.018-.035*p, micElbow:.065*p, micWrist:-.030*p,
+  head:.014*Math.sin(t*.85)+.024*p, nod:.025*p,
   shoulder:-.025+({wave:-.52,present:-.34,point:-.43}[pose]||0)*p,
   elbow:({wave:.18,present:.16,point:.29}[pose]||0)*p,
   wrist:(pose==='wave'?.15*Math.sin(t*4.2):pose==='present'?-.09:pose==='point'?.06:0)*p,

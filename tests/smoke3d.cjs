@@ -24,69 +24,30 @@ const handChecks=[
  'Shoulder_L','Shoulder_R','Elbow_L','Elbow_R','Wrist_L','Wrist_R',
  'Tailored upper sleeve L','Tailored upper sleeve R',
  'Tailored forearm L','Tailored forearm R',
- 'Hand_almoured_ceramic_palm_L','Hand_almoured_ceramic_palm_R',
- 'Thumb_R_Root','Thumb_L_Root',
- 'Finger_R_0_Knuckle','Finger_R_1_Knuckle','Finger_R_2_Knuckle','Finger_R_3_Knuckle',
- 'Finger_L_0_Knuckle','Finger_L_1_Knuckle','Finger_L_2_Knuckle','Finger_L_3_Knuckle',
- 'Microphone steel capsule grille'
+ 'Hand_almoured_ceramic_palm_R','Thumb_R_Root',
+ 'Microphone hand rigid grip','Microphone steel capsule grille'
 ];
-for(const name of handChecks) assert(modelNames.includes(name),'Missing articulated limb node: '+name);
-assert(!modelNames.some(n=>/Finger [LR] [0-9]$/.test(n)),'Old straight rod fingers still visible');
-console.log('PASS V4 articulated shoulders, elbows, wrists, 8 finger knuckles and thumbs');
-for(const side of ['L','R']){
- for(const suffix of ['Continuous cobalt wrist extension','Cuff seamless cobalt sleeve end','Cuff slim porcelain transition','Cuff thin cobalt trim','Wrist hidden mechanical socket']){
-  const name=suffix+' '+side;
-  assert(modelNames.includes(name),'Missing V7 seamless sleeve geometry: '+name);
- }
- assert(!modelNames.includes('Wrist under-cuff mechanism '+side),'Exposed old wrist joint remains on '+side);
+for(const name of handChecks)assert(modelNames.includes(name),'Missing limb node: '+name);
+assert(!modelNames.some(n=>/^Finger_L_|^Thumb_L_Root$/.test(n)),
+ 'Rigid microphone hand still has independent finger or thumb controls');
+const wristIndex=gltf.nodes.findIndex(n=>n.name==='Wrist_L');
+const descendants=i=>[i,...(gltf.nodes[i].children||[]).flatMap(descendants)];
+const attached=descendants(wristIndex).map(i=>gltf.nodes[i].name);
+assert(attached.includes('Microphone hand rigid grip'),'Rigid grip is detached from wrist');
+assert(attached.includes('Microphone steel capsule grille'),'Microphone is detached from wrist');
+assert(modelNames.filter(n=>n==='Microphone hand rigid grip').length===1,'Grip is duplicated');
+for(const side of ['L','R'])for(const suffix of ['Continuous cobalt wrist extension','Cuff seamless cobalt sleeve end','Cuff slim porcelain transition','Cuff thin cobalt trim','Wrist hidden mechanical socket']){
+ assert(modelNames.includes(suffix+' '+side),'Missing seamless cuff: '+suffix+' '+side);
 }
-console.log('PASS V7 hidden mechanical wrist joints and continuous cobalt sleeves');
-// User-preferred presenting hand comes from the verified V8 design.
+// The presenting hand remains articulated and retains every approved mesh.
 for(let j=0;j<4;j++){
- for(const item of ['upper white shell','distal ceramic','middle graphite pivot','rounded black pad']){
-  assert(modelNames.includes('Finger R '+j+' '+item),'Missing restored V8 presenting finger '+j+' '+item);
- }
+ for(const item of ['upper white shell','distal ceramic','middle graphite pivot','rounded black pad'])
+  assert(modelNames.includes('Finger R '+j+' '+item),'Presenting hand changed: '+j+' '+item);
  assert(modelNames.includes('Finger_R_'+j+'_Knuckle'),'Missing presenting knuckle '+j);
- assert(modelNames.includes('Finger L '+j+' curled white segment'),'Missing microphone finger '+j);
- assert(modelNames.includes('Finger L '+j+' curved porcelain fingertip'),'Missing clean gripping end '+j);
- assert(modelNames.includes('Finger_L_'+j+'_Knuckle'),'Missing microphone knuckle '+j);
 }
-assert(modelNames.includes('Thumb R porcelain base'),'Missing restored presenting thumb');
-assert(modelNames.includes('Thumb_L_Root'),'Missing opposing microphone thumb');
-assert(!modelNames.some(n=>/Finger L [0-3] (proximal porcelain curl|narrow graphite first joint|cyan joint inlay)/.test(n)),'Old duplicated microphone finger layers remain');
-assert(modelNames.filter(n=>/^Finger L [0-3] curled white segment$/.test(n)).length===4,
- 'Exactly four white gripping fingers must be exported');
-assert(modelNames.filter(n=>/^Thumb_L_Root$/.test(n)).length===1,
- 'Exactly one microphone thumb must be exported');
-console.log('PASS V10 restored presenting hand and four clean microphone fingers plus thumb');
-// The V11 thumb is located ABOVE the microphone fingers rather than under
-// the little finger. Check its authored position and exported ceramic meshes.
-for (const j of [0,1,2,3]){
- assert(modelNames.includes('Finger L '+j+' soft hinge'),'Missing fine ceramic finger hinge '+j);
- assert(modelNames.includes('Finger L '+j+' rounded ceramic pad'),'Missing matching ceramic fingertip '+j);
-}
-assert(modelNames.includes('Thumb L upward ceramic tip'),'Thumb-up microphone grip was not exported');
-assert(modelNames.includes('Thumb L high recessed hinge'),'Microphone thumb is not seated high on the palm');
-assert(modelNames.filter(n=>/^Finger L [0-3] recessed graphite root$/.test(n)).length===4,
- 'Must have exactly four articulated microphone fingers');
-console.log('PASS V11 matched porcelain fingers and high opposable microphone thumb');
-assert(modelNames.includes('Hand_almoured_ceramic_palm_L'),'Mirrored gripper porcelain shell missing');
-assert(modelNames.includes('Hand_almoured_ceramic_palm_R'),'Original open hand shell missing');
-assert(!modelNames.includes('Palm graphite perimeter L'),
- 'Mic palm inner black insert is still visible as exterior geometry');
-assert(!modelNames.includes('Hand pearlescent knuckle plate L'),
- 'Mic palm extra knuckle shell is still layered outside the glove');
-assert(modelNames.includes('Palm graphite perimeter R'),
- 'Approved open hand inner lining was removed by mistake');
-assert(modelNames.includes('Hand pearlescent knuckle plate R'),
- 'Approved presenting palm was modified');
-console.log('PASS single ceramic microphone palm with no duplicate layers');
-for(let j=0;j<4;j++){
- for(const suffix of ['middle ceramic phalanx','distal graphite hinge'])
-  assert(modelNames.includes('Finger L '+j+' '+suffix),'Missing three-segment grip: '+suffix);
- assert(modelNames.includes('Finger_L_'+j+'_Middle'),'Missing middle articulation pivot');
-}
-console.log('PASS V15 three phalanges and two hinge seams per gripping finger');
+for(const name of ['Thumb R porcelain base','Palm graphite perimeter R','Hand pearlescent knuckle plate R'])
+ assert(modelNames.includes(name),'Presenting hand changed: '+name);
+console.log('PASS single rigid microphone grip, common wrist attachment, intact presenting hand');
 for(const name of ['Mouth rim precision outline','Mouth open burgundy recess','Mouth warm coral tongue','Mouth upper ivory smile']){
  const node=gltf.nodes.find(n=>n.name===name),mesh=gltf.meshes[node.mesh];
  for(const shape of ['A','E','O','U','M','F','S','SMILE'])

@@ -967,6 +967,28 @@ if wire_parts:
     bpy.context.object.name="Microphone unified woven grille"
     bpy.ops.object.select_all(action="DESELECT")
 
+# V28: one rigid gripping hand, with a single wrist control. Preserve the
+# authored finger silhouette and materials, but remove all finger/thumb pivots.
+bpy.context.view_layer.update()
+grip_parts=[o for o in wrists["L"].children_recursive
+            if o.type=="MESH" and not o.name.startswith("Microphone")]
+grip_vertices=sum(len(o.data.vertices) for o in grip_parts)
+for obj in grip_parts:
+    world=obj.matrix_world.copy()
+    obj.parent=wrists["L"]
+    obj.matrix_world=world
+bpy.ops.object.select_all(action="DESELECT")
+for obj in grip_parts:obj.select_set(True)
+bpy.context.view_layer.objects.active=grip_parts[0]
+bpy.ops.object.join()
+grip=bpy.context.object
+grip.name="Microphone hand rigid grip"
+assert len(grip.data.vertices)==grip_vertices, "Rigid grip lost geometry"
+for obj in list(bpy.data.objects):
+    if obj.name.startswith("Finger_L_") or obj.name=="Thumb_L_Root":
+        bpy.data.objects.remove(obj,do_unlink=True)
+bpy.ops.object.select_all(action="DESELECT")
+
 ring("Hover ground ring",(0,0,.36),.74,.044,cyan,root)
 orb("Hover core",(0,0,.51),(.26,.26,.09),cyan,root)
 
@@ -1048,13 +1070,16 @@ keys=[
 ]
 for frame,left,right,elbow,tilt,bob,mouth_open in keys:
     bpy.context.scene.frame_set(frame)
-    shoulders["L"].rotation_euler=(0, left, 0)
+    lift=.030 if frame in (22,40,77) else 0
+    shoulders["L"].rotation_euler=(0, left-lift, 0)
+    elbows["L"].rotation_euler=(0,lift*1.8,0)
+    wrists["L"].rotation_euler=(0,-lift*.8,0)
     shoulders["R"].rotation_euler=(0, right, 0)
     elbows["R"].rotation_euler=(0,elbow,0)
     head.rotation_euler=(0,tilt*.4,tilt)
     root.location.z=bob
 
-    for obj in [shoulders["L"],shoulders["R"],elbows["R"],head,root]:
+    for obj in [shoulders["L"],shoulders["R"],elbows["R"],elbows["L"],wrists["L"],head,root]:
         if obj == mouth:
             obj.keyframe_insert(data_path="scale",frame=frame)
         elif obj == root:
@@ -1070,7 +1095,7 @@ scene.render.engine='BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in bpy.types.Re
 
 # Share one named NLA track across all animated pieces, so glTF exports a
 # single synchronized gesture clip instead of one animation per body part.
-for obj in [root, head, shoulders["L"], shoulders["R"], elbows["R"]]:
+for obj in [root, head, shoulders["L"], shoulders["R"], elbows["R"], elbows["L"], wrists["L"]]:
     anim = obj.animation_data
     if anim and anim.action:
         action = anim.action

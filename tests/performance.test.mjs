@@ -15,7 +15,8 @@ console.log('PASS speech silence, ordered timing imports, closed consonants and 
 // Microphone joints must remain stable across gesture types and pulse extremes.
 for(const pose of ['neutral','wave','present','point'])for(let i=0;i<240;i++){
  const m=presenterMotion(i/30,pose,(i%2));
- assert.equal(m.micShoulder,-.018);assert.equal(m.micElbow,0);
+ assert(Math.abs(m.micShoulder+m.micElbow+m.micWrist+.018)<1e-10,'Microphone loses orientation during lift');
+ assert(Math.abs(m.micElbow)<=.065,'Microphone lift exceeds restrained range');
  assert(Math.abs(m.wrist)<=.15,'Wrist wave exceeds restrained presenter range');
 }
 const settle=fps=>{let x=0;for(let i=0;i<fps;i++)x+=(1-x)*motionBlend(1/fps);return x;};
