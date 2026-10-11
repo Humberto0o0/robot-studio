@@ -53,12 +53,12 @@ for frame in range(1,num+1):
                     'LOOK_RIGHT':(take['gaze'] if take else 0)*(1-blink)}
             key.value=facial.get(key.name,weights.get(key.name,0))
             key.keyframe_insert('value',frame=frame)
-    raised={'wave':-.72,'present':-.40,'open-hand':-.40,'point':-.56,'emphasis':-.30,'excited':-.40}.get(pose,0)*pulse*plan['settings']['energy']
+    raised={'wave':-.52,'present':-.34,'open-hand':-.34,'point':-.43,'emphasis':-.30,'excited':-.40}.get(pose,0)*pulse*plan['settings']['energy']
     rotations={
         'Head_Pivot':(0,.018*math.sin(t*1.1),.021*math.sin(t*.8)),
         'Shoulder_R':(0,raised,0), 'Elbow_R':(0,.10*pulse,0),
-        'Shoulder_L':(0,.015*math.sin(t*.8),0), 'Elbow_L':(0,0,0),
-        'Wrist_R':(0,0,.13*pulse*math.sin(t*7) if pose=='wave' else 0),
+        'Shoulder_L':(0,-.018,0), 'Elbow_L':(0,0,0),
+        'Wrist_R':(0,0,.15*pulse*math.sin(t*4.2) if pose=='wave' else 0),
     }
     if pose in ('nod','emphasis'):rotations['Head_Pivot']=(.05*math.sin(t*6)*pulse,0,0)
     if take and plan['settings']['gestures']:
@@ -67,7 +67,7 @@ for frame in range(1,num+1):
         root.keyframe_insert('rotation_euler',frame=frame)
     for name,delta in rotations.items():
         obj=bpy.data.objects[name];obj.rotation_euler=tuple(a+b for a,b in zip(base[name],delta));obj.keyframe_insert('rotation_euler',frame=frame)
-    root.location=(base_root[0],base_root[1],base_root[2]+(.015*math.sin(t*1.65) if plan['settings']['float'] else 0));root.keyframe_insert('location',frame=frame)
+    root.location=(base_root[0],base_root[1],base_root[2]+(.012*math.sin(t*1.15) if plan['settings']['float'] else 0));root.keyframe_insert('location',frame=frame)
 # Linear keyframes preserve the sampled plan, no spline overshoot at lip closure.
 for obj in list(bpy.data.objects)+[o.data.shape_keys for o in face]:
     if obj.animation_data and obj.animation_data.action:

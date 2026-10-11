@@ -55,3 +55,17 @@ export function blinkAt(t){
  if(phase>.19)return 0;
  return phase<.065?phase/.065:clamp(1-(phase-.065)/.125,0,1);
 }
+
+// Presenter motion is independent of the audio amplitude: a firm microphone grip
+// must not turn every syllable into a shoulder/elbow twitch.
+export function presenterMotion(t,pose,pulse){
+ const p=Math.max(0,Math.min(1,pulse));
+ return {
+  micShoulder:-.018, micElbow:0,
+  head:.014*Math.sin(t*.85)+.024*p,
+  shoulder:-.025+({wave:-.52,present:-.34,point:-.43}[pose]||0)*p,
+  elbow:({wave:.18,present:.16,point:.29}[pose]||0)*p,
+  wrist:(pose==='wave'?.15*Math.sin(t*4.2):pose==='present'?-.09:pose==='point'?.06:0)*p,
+ };
+}
+export const motionBlend=dt=>1-Math.exp(-8*Math.max(0,Math.min(.08,dt)));

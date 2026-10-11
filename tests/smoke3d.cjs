@@ -259,8 +259,11 @@ console.log('PASS exported speech and eye morph targets, batched microphone gril
  const dims=await page.locator('#stage').evaluate(el=>[el.width,el.height]);
  assert.deepStrictEqual(dims,[1080,1920],'Recording canvas is not Full HD');
  console.log('PASS Full HD recording started',dims.join('x'));
- await page.waitForTimeout(1300);
+ const motionDownload=page.waitForEvent('download');
+ await page.waitForTimeout(7200);
  await page.locator('#record').click();
+ const motionClip=await motionDownload;
+ await motionClip.saveAs('test-results/presenter-motion.'+(motionClip.suggestedFilename().endsWith('.mp4')?'mp4':'webm'));
  await page.waitForFunction(()=>document.getElementById('exportState').textContent.includes('Recording saved'),null,{timeout:18000});
  const post=await page.locator('#stage').evaluate(el=>[el.width,el.height]);
  assert.deepStrictEqual(post,[540,960],'Preview did not return to light-resolution mode');

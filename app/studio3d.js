@@ -1,4 +1,4 @@
-import {SPEECH_SHAPES,estimateVisemes,validateTiming,shapeAt,blinkAt} from './performance.mjs';
+import {SPEECH_SHAPES,estimateVisemes,validateTiming,shapeAt,blinkAt,presenterMotion,motionBlend} from './performance.mjs?v=27';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
@@ -174,38 +174,41 @@ function gestureAt(t){
  if(t-cue.t>=1.7)return 'neutral';
  return cue.pose;
 }
+let jointBlend=1;
 function applyJoint(name,axis,amount){
  const o=nodes[name];if(!o)return;
  const def=defaults[o.uuid];
- o.quaternion.copy(def.q);
+ const target=def.q.clone();
  const v=axis==='y'?new THREE.Vector3(0,1,0):axis==='x'?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1);
- o.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(v,amount));
+ target.multiply(new THREE.Quaternion().setFromAxisAngle(v,amount));
+ o.quaternion.slerp(target,jointBlend);
 }
 function applyPosition(name,x,y,z){
  const o=nodes[name];if(!o)return;const d=defaults[o.uuid].p;o.position.set(d.x+x,d.y+y,d.z+z);
 }
 function animate3D(t,dt,loud){
  if(!rig)return;
+ jointBlend=motionBlend(dt);
  let energy=settings.energy,pose=gestureAt(t),clipTime=state.duration?t:performance.now()/1000;
- let intro=state.duration&&t<2&&!(state.poseUntil && performance.now()<state.poseUntil)?'wave':pose;
+ let intro=pose;
  if(!state.duration&&state.poseUntil>0&&performance.now()>state.poseUntil){state.pose='neutral';state.poseUntil=0;intro='neutral';}
  const ph=clipTime;
  // Smooth cosine envelopes at gesture boundaries prevent sudden arm pops.
  let start=0,strength=0;
  const cue=currentCue(t);
  if(state.poseUntil && performance.now()<state.poseUntil && !state.playing){strength=intro==='neutral'?0:1;}
- else if(state.duration&&cue&&intro!=='neutral'){start=t-cue.t;strength=smooth(0,.25,start)*(1-smooth(1.1,1.7,start));}
+ else if(state.duration&&cue&&intro!=='neutral'){start=t-cue.t;strength=smooth(0,.48,start)*(1-smooth(1.05,1.7,start));}
  else if(!state.duration){strength=intro==='neutral'?0:1;}
  const pulse=energy*strength;
- const hover=settings.float ? .035*Math.sin(ph*1.65) : 0;
+ const hover=settings.float ? .012*Math.sin(ph*1.15) : 0;
  applyPosition('Robot_Root',0,hover,0);
- applyJoint('Head_Pivot','z',.028*Math.sin(ph*1.13)+.045*loud*energy);
- applyJoint('Shoulder_L','y',-.08+.04*Math.sin(ph*1.1)-.08*loud);
- const rightRaise=(intro==='wave'?-.77:intro==='present'?-.42:intro==='point'?-.61:0)*pulse;
- applyJoint('Shoulder_R','y',-.05+rightRaise+.045*Math.sin(ph*1.25));
- applyJoint('Elbow_R','y',(intro==='point'?.26:intro==='wave'?.22:intro==='present'?.11:0)*pulse);
- applyJoint('Elbow_L','y',-.075*loud);
- applyJoint('Wrist_R','z',intro==='wave'?.35*pulse*Math.sin(ph*9):0);
+ const motion=presenterMotion(ph,intro,pulse);
+ applyJoint('Head_Pivot','z',motion.head);
+ applyJoint('Shoulder_L','y',motion.micShoulder);
+ applyJoint('Elbow_L','y',motion.micElbow);
+ applyJoint('Shoulder_R','y',motion.shoulder);
+ applyJoint('Elbow_R','y',motion.elbow);
+ applyJoint('Wrist_R','z',motion.wrist);
  // Restored V8 presenting pose. Keep the four fingers relaxed and aligned.
  // Finger movement is small: large X bends made the open palm look claw-like.
  const gestureSoft=(intro==='present'?.035:intro==='point'?.065:intro==='wave'?.047:.008)*pulse;
@@ -214,10 +217,10 @@ function animate3D(t,dt,loud){
    const wave= intro==='wave'?.015*Math.sin(ph*6.1+k*.6)*pulse:0;
    applyJoint('Finger_R_'+k+'_Knuckle','z',gestureSoft+stagger+wave);
    applyJoint('Finger_R_'+k+'_Tip','x',gestureSoft*.18);
-   applyJoint('Finger_L_'+k+'_Knuckle','z',-.007+.009*loud);
+   applyJoint('Finger_L_'+k+'_Knuckle','z',0);
  }
  applyJoint('Thumb_R_Root','z',-.012+gestureSoft*.22);
- applyJoint('Thumb_L_Root','z',-.012-.008*loud);
+ applyJoint('Thumb_L_Root','z',0);
  const mouthOn=settings.mouth&&(state.duration?activeSpeech(t):false);
  let shape=state.manualShape!=='AUTO'&&!state.playing?state.manualShape:'REST';
  if(state.manualShape==='AUTO'||state.playing){
@@ -334,7 +337,7 @@ function makeCues(){
  for(const p of state.speech){
   const time=p.start+.15;
   if(time>1.9&&time<state.duration-.4&&(!cues.length||time-cues.at(-1).t>2.6)){
-   const pose=cues.length%3===0?'wave':cues.length%2===0?'point':'present';
+   const pose=cues.length%3===0?'point':'present';
    cues.push({t:time,pose,title:'Speech gesture',detail:'Natural arm movement during speech'});
   }
  }
