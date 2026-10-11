@@ -451,8 +451,15 @@ def matrix_pixels(name,cx,base,width,outer,inner,parent):
 
 # V17 open LED eyes: projected annular irises, inset pupils, catchlights and
 # independent brows. All parts remain real geometry with identical morph topology.
-pupil_mat=mat("LED pupil deep ink",(.001,.004,.010),0,.65)
-catch_mat=mat("LED eye catchlight",(.30,.88,1),0,.4,1.4)
+pupil_mat=mat("LED pupil deep ink",(.0002,.0004,.001),0,.42)
+catch_mat=mat("LED eye catchlight",(.06,.75,1),0,.4,1.3)
+iris_materials=[]
+for i in range(8):
+    t=i/7
+    m=mat("LED sapphire iris gradient "+str(i),
+          (.002,.045+.40*t,.23+.55*t),0,.45,.85)
+    m.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].default_value=(0,0,0,1)
+    iris_materials.append(m)
 def eye_mesh(name,points,faces,material,eye,cx,part):
     # The reference has a lower eyelid cutting across the circular iris/pupil.
     # Clip every display layer to one shared baseline before creating morphs.
@@ -507,11 +514,25 @@ for sign,label in [(-1,"L"),(1,"R")]:
                 xx=cx+x+dx;zz=zc+z+dz;points.append((xx,visor_depth(xx,zz,.010),zz))
             faces.append((q,q+1,q+2,q+3))
     eye_mesh("Eye emissive LED matrix "+label,points,faces,led_px,eye,cx,"iris")
-    for part,rx,rz,ox,oz,material in (("pupil",.116,.125,0,0,pupil_mat),("catch",.031,.030,.043,.065,catch_mat)):
-        points=[(cx+ox,visor_depth(cx+ox,zc+oz,.012 if part=="pupil" else .016),zc+oz)]
+    # Sapphire iris surrounds a smaller, fully rounded pupil. The lower rim
+    # brightens toward cyan while all layers share the expression morphs.
+    points=[];faces=[]
+    for i in range(count):
+        a=2*math.pi*i/count
+        for radius in (.133,.079):
+            x=cx+radius*math.cos(a);z=zc+.045+radius*math.sin(a)
+            points.append((x,visor_depth(x,z,.013),z))
+        j=2*i;k=2*((i+1)%count);faces.append((j,k,k+1,j+1))
+    iris=eye_mesh("Eye sapphire iris "+label,points,faces,iris_materials[0],eye,cx,"iris")
+    for material in iris_materials[1:]:iris.data.materials.append(material)
+    for i,face in enumerate(iris.data.polygons):
+        a=2*math.pi*(i+.5)/count
+        face.material_index=round(7*((1-math.sin(a))/2)**1.6)
+    for part,rx,rz,ox,oz,material in (("pupil",.079,.080,0,.045,pupil_mat),("catch",.022,.022,.044,.095,catch_mat)):
+        points=[(cx+ox,visor_depth(cx+ox,zc+oz,.017 if part=="pupil" else .021),zc+oz)]
         for i in range(count):
             a=2*math.pi*i/count;x=cx+ox+rx*math.cos(a);z=zc+oz+rz*math.sin(a)
-            points.append((x,visor_depth(x,z,.012 if part=="pupil" else .016),z))
+            points.append((x,visor_depth(x,z,.017 if part=="pupil" else .021),z))
         faces=[(0,1+i,1+(i+1)%count) for i in range(count)]
         eye_mesh("Eye "+part+" "+label,points,faces,material,eye,cx,part)
     points=[];faces=[]
